@@ -1,4 +1,3 @@
-// context/TaskContext.tsx
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import 'react-native-get-random-values'; 
 import { v4 as uuidv4 } from 'uuid';
@@ -9,11 +8,13 @@ export interface Task {
   difficulty: 'Łatwy' | 'Średni' | 'Trudny';
   description: string;
   dueDate: Date;
+  status: 'inProgress' | 'done' | 'cancelled';
 }
 
 interface TaskContextValue {
   tasks: Task[];
   addTask: (t: Omit<Task, 'id'>) => void;
+  updateTaskStatus: (id: string, status: Task['status']) => void;
 }
 
 const TaskContext = createContext<TaskContextValue | undefined>(undefined);
@@ -26,8 +27,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setTasks((prev) => [newTask, ...prev]);
   };
 
+  const updateTaskStatus = (id: string, status: Task['status']) => {
+    setTasks(prev =>
+      prev.map(t => t.id === id ? { ...t, status } : t)
+    )
+  }
+
   return (
-    <TaskContext.Provider value={{ tasks, addTask }}>
+    <TaskContext.Provider value={{ tasks, addTask, updateTaskStatus }}>
       {children}
     </TaskContext.Provider>
   );

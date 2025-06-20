@@ -19,7 +19,10 @@ const Container = styled(SafeAreaView)`
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px 0px 16px;
+  padding-top: 16px;
+  padding-horizontal: 16px;
+  padding-bottom: -30px;
+  margin-bottom: 10px;
   background-color: #2875d4;
   border-radius: 0px 0px 8px 8px;
 `;
@@ -64,7 +67,7 @@ const BarLabel = styled.Text`
 `;
 
 const BarWrapper = styled.View`
-  width: 80px;
+  width: 150px;
 `;
 
 const TopBar: React.FC<TopBarProps> = ({

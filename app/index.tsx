@@ -1,22 +1,30 @@
 import React, { useState } from 'react';
-import { GestureResponderEvent, Modal } from 'react-native';
+import { FlatList, Modal , ScrollView, TouchableWithoutFeedback} from 'react-native';
 import { useRouter } from 'expo-router';
 import styled from 'styled-components/native';
 import { Ionicons } from '@expo/vector-icons';
 import TopBar from '../components/TopBar';
 import TaskItem from '../components/TaskItem';
 import { useTasks, Task } from '../context/TaskContext';
+import TaskDetailModal from '../components/TaskDetailModal';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
   const { tasks } = useTasks();
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const inProgress = tasks.filter(t => t.status === 'inProgress');
+  const done = tasks.filter(t => t.status === 'done');
+  const cancelled = tasks.filter(t => t.status === 'cancelled');
 
   interface TaskType {
     id: string;
     title: string;
     difficulty?: 'Łatwy' | 'Średni' | 'Trudny';
   }
+
 
   return (
     <Screen>
@@ -29,20 +37,105 @@ export default function HomeScreen() {
         maxHP={0}
       />
 
-      <List
-        data={tasks}
-        keyExtractor={(item: TaskType) => item.id}
-        renderItem={({ item }: { item: TaskType }) => (
-        <TaskItem            
-          title={item.title}
-          difficulty={item.difficulty}
-          onPress={() => {/* np. oznacz zadanie */}}
-         />
-       )}
-         contentContainerStyle={{ padding: 16 }}
-         ListEmptyComponent={<EmptyText>Brak zadań – dodaj nowe!</EmptyText>}
-       />
+      <ScrollView contentContainerStyle={{ paddingBottom: 80}}>
+        <Section>
+          <SectionHeader>W toku</SectionHeader>
+          <FlatList
+          data={inProgress}
+          scrollEnabled={false}
+          keyExtractor={t => t.id}
+          renderItem={({ item }: {item: TaskType}) => (
+            <TaskItem
+              title={item.title}
+              difficulty={item.difficulty}
+              onPress={() => {
+                setSelectedTask({
+                  id: item.id,
+                  title: item.title,
+                  difficulty: item.difficulty ?? 'Łatwy',
+                  description: '',
+                  dueDate: new Date(),
+                  status: 'inProgress'
+                });
+                setModalVisible(true);
+              }}
+            />
+          )}
+          contentContainerStyle={{ padding: 16 }}
+          ListEmptyComponent={<EmptyText>Brak zadań – dodaj nowe!</EmptyText>}
+        />
+        </Section>
 
+        <Section>
+          <SectionHeader>Wstrzymane</SectionHeader>
+          <FlatList
+            data={done}
+            scrollEnabled={false}
+            keyExtractor={t => t.id}
+            renderItem={({ item }: {item: TaskType}) => (
+              <TaskItem
+                title={item.title}
+                difficulty={item.difficulty}
+                onPress={() => {
+                  setSelectedTask({
+                    id: item.id,
+                    title: item.title,
+                    difficulty: item.difficulty ?? 'Łatwy',
+                    description: '',
+                    dueDate: new Date(),
+                    status: 'done'
+                  });
+                  setModalVisible(true);
+                }}
+              />
+            )}
+            contentContainerStyle={{ padding: 16 }}
+            ListEmptyComponent={<EmptyText>Brak wstrzymanych zadań</EmptyText>}
+          />
+        </Section>
+
+        <Section>
+          <SectionHeader>Wykonane</SectionHeader>
+          <FlatList
+            data={cancelled}
+            scrollEnabled={false}
+            keyExtractor={t => t.id}
+            renderItem={({ item }: {item: TaskType}) => (
+              <TaskItem
+                title={item.title}
+                difficulty={item.difficulty}
+                onPress={() => {
+                  setSelectedTask({
+                    id: item.id,
+                    title: item.title,
+                    difficulty: item.difficulty ?? 'Łatwy',
+                    description: '',
+                    dueDate: new Date(),
+                    status: 'cancelled'
+                  });
+                  setModalVisible(true);
+                }}
+              />
+            )}
+            contentContainerStyle={{ padding: 16 }}
+            ListEmptyComponent={<EmptyText>Brak anulowanych zadań</EmptyText>}
+          />
+        </Section>
+      </ScrollView>
+
+       <Modal visible={!!selectedTask} transparent animationType='fade'>
+          <TouchableWithoutFeedback onPress={() => setSelectedTask(null)}>
+            <Overlay/>
+          </TouchableWithoutFeedback>
+
+          {selectedTask && (
+            <TaskDetailModal
+              visible={modalVisible}
+              taskId={selectedTask.id}              
+              onClose={() => setSelectedTask(null)}
+            />
+          )}  
+       </Modal>
 
       <FloatingButton onPress={() => router.push('/add-task')}>
         <Ionicons name="add" size={28} color="#fff" />
@@ -83,25 +176,36 @@ const Screen = styled.SafeAreaView`
   flex: 1;
 `;
 
-const List = styled.FlatList<Task>``
+const Section = styled.View`margin-bottom: 20px;`;
+
+const SectionHeader = styled.Text`
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0 16px 8px;
+`;
+
+const Overlay = styled.View`
+  flex: 1;
+  background-color: rgba(0,0,0,0.4);
+`;
 
 const EmptyText = styled.Text`
   text-align: center;
-  margin-top: 32px;
-  color: #666;
+  color: #888;
+  margin: 16px 0;
 `;
 
 const FloatingButton = styled.TouchableOpacity`
   position: absolute;
   right: 24px;
-  bottom: 24px;
+  bottom: 56px;
   width: 56px;
   height: 56px;
   border-radius: 28px;
   background-color: #2875d4;
   align-items: center;
   justify-content: center;
-  elevation: 5;
+  elevation: 8;
 `;
 
 // ——— Menu modal styling ———

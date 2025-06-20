@@ -13,43 +13,6 @@ interface NewTask {
   dueDate: Date;
 }
 
-const Container = styled.SafeAreaView`
-  flex: 1;
-  padding: 16px;
-  background-color: #fff;
-`;
-
-const Label = styled.Text`
-  font-size: 16px;
-  margin-bottom: 8px;
-  color: #333;
-`;
-
-const Input = styled.TextInput`
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 8px;
-  margin-bottom: 16px;
-`;
-
-const PickerContainer = styled.View`
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-bottom: 16px;
-`;
-
-const FormButton = styled.TouchableOpacity`
-  background-color: #2875d4;
-  padding: 12px;
-  border-radius: 4px;
-  align-items: center;
-`;
-
-const ButtonText = styled.Text`
-  color: #fff;
-  font-size: 16px;
-`;
-
 export default function AddTaskScreen() {
   const router = useRouter();
   const { addTask } = useTasks();
@@ -73,6 +36,7 @@ export default function AddTaskScreen() {
       difficulty: task.difficulty || 'Łatwy',
       description: task.description || '',
       dueDate: task.dueDate || new Date(),
+      status: 'inProgress',
     });
     router.back();
   };
@@ -133,3 +97,40 @@ export default function AddTaskScreen() {
     </Container>
   );
 }
+
+const Container = styled.SafeAreaView`
+  flex: 1;
+  padding: 16px;
+  background-color: #fff;
+`;
+
+const Label = styled.Text`
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: #333;
+`;
+
+const Input = styled.TextInput`
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 16px;
+`;
+
+const PickerContainer = styled.View`
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 16px;
+`;
+
+const FormButton = styled.TouchableOpacity`
+  background-color: #2875d4;
+  padding: 12px;
+  border-radius: 4px;
+  align-items: center;
+`;
+
+const ButtonText = styled.Text`
+  color: #fff;
+  font-size: 16px;
+`;
