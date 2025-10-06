@@ -8,7 +8,8 @@ export interface Task {
   difficulty: 'Łatwy' | 'Średni' | 'Trudny';
   description: string;
   dueDate: Date;
-  status: 'inProgress' | 'done' | 'cancelled';
+  status: 'inProgress' | 'paused' | 'done';
+  createdAt?: Date;
 }
 
 interface TaskContextValue {
@@ -23,7 +24,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
 
   const addTask = (t: Omit<Task, 'id'>) => {
-    const newTask: Task = { ...t, id: uuidv4() };
+    const newTask: Task = { ...t, status: t.status ?? 'inProgress', id: uuidv4(), createdAt: new Date() };
     setTasks((prev) => [newTask, ...prev]);
   };
 
