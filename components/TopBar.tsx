@@ -14,6 +14,48 @@ interface TopBarProps {
   maxHP: number;
 }
 
+export default function TopBar({ 
+  onMenuPress, 
+  avatarUri, 
+  currentXP, 
+  maxXP, 
+  currentHP, 
+  maxHP 
+  }: TopBarProps) {
+  return (
+    <Container>
+      <LeftSection>
+        <MenuButton onPress={onMenuPress}>
+          <Ionicons name="menu" size={34} />
+        </MenuButton>
+      </LeftSection>
+
+      <RightSection>
+        <BarsContainer>
+          <ProgressRow>
+            <BarLabel>HP</BarLabel>
+            <BarWrapper>
+              <ProgressBar value={currentHP} maxValue={maxHP} />
+            </BarWrapper>
+          </ProgressRow>
+          <ProgressRow>
+            <BarLabel>XP</BarLabel>
+            <BarWrapper>
+              <ProgressBar value={currentXP} maxValue={maxXP} />
+            </BarWrapper>
+          </ProgressRow>
+        </BarsContainer>
+        {avatarUri ? (
+          <Avatar source={{ uri: avatarUri }} />
+        ) : (
+          <Ionicons name="person-circle" size={40} />
+        )}
+      </RightSection>
+    </Container>
+  );
+}
+
+// Style
 const Container = styled(SafeAreaView)`
   width: 100%;
   flex-direction: row;
@@ -22,7 +64,6 @@ const Container = styled(SafeAreaView)`
   padding-top: 16px;
   padding-horizontal: 16px;
   padding-bottom: -30px;
-  margin-bottom: 10px;
   background-color: #2875d4;
   border-radius: 0px 0px 8px 8px;
 `;
@@ -69,44 +110,3 @@ const BarLabel = styled.Text`
 const BarWrapper = styled.View`
   width: 150px;
 `;
-
-const TopBar: React.FC<TopBarProps> = ({
-  onMenuPress,
-  avatarUri,
-  currentXP,
-  maxXP,
-  currentHP,
-  maxHP,
-}) => (
-  <Container>
-    <LeftSection>
-      <MenuButton onPress={onMenuPress}>
-        <Ionicons name="menu" size={34} />
-      </MenuButton>
-    </LeftSection>
-
-    <RightSection>
-      <BarsContainer>
-        <ProgressRow>
-          <BarLabel>HP</BarLabel>
-          <BarWrapper>
-            <ProgressBar value={currentHP} maxValue={maxHP} />
-          </BarWrapper>
-        </ProgressRow>
-        <ProgressRow>
-          <BarLabel>XP</BarLabel>
-          <BarWrapper>
-            <ProgressBar value={currentXP} maxValue={maxXP} />
-          </BarWrapper>
-        </ProgressRow>
-      </BarsContainer>
-      {avatarUri ? (
-        <Avatar source={{ uri: avatarUri }} />
-      ) : (
-        <Ionicons name="person-circle" size={40} />
-      )}
-    </RightSection>
-  </Container>
-);
-
-export default TopBar;

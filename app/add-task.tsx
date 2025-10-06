@@ -5,6 +5,7 @@ import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { useTasks } from '@/context/TaskContext';
+import { Ionicons } from '@expo/vector-icons'; 
 
 interface NewTask {
   title: string;
@@ -43,6 +44,10 @@ export default function AddTaskScreen() {
 
   return (
     <Container>
+      <CloseButton onPress={() => router.back()}>
+        <Ionicons name="close" size={24} color="#333" />
+      </CloseButton>
+
       <Label>Nazwa zadania</Label>
       <Input
         value={task.title}
@@ -98,10 +103,25 @@ export default function AddTaskScreen() {
   );
 }
 
+// Style 
+
 const Container = styled.SafeAreaView`
   flex: 1;
-  padding: 16px;
+  padding-top: 60px;
+  padding-left: 32px;
+  padding-right: 32px;
+  margin: 16px;
+  margin-top: 0;
+  border-radius: 8px;
   background-color: #fff;
+`;
+
+const CloseButton = styled.TouchableOpacity`
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 8px;
+  z-index: 10;
 `;
 
 const Label = styled.Text`
