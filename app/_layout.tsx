@@ -7,6 +7,7 @@ import { TaskProvider } from '@/context/TaskContext';
 import TopBar from '@/components/TopBar';
 import SideMenu from '@/components/SideMenu';
 import NavBar from '@/components/NavBar';
+import { AuthProvider } from '@/context/AuthContext';
 
 type RoutePath = '/' | '/tasks' | '/add-task' | '/character';
 
@@ -22,44 +23,46 @@ export default function RootLayout() {
   };
 
   return (
-    <TaskProvider>
-      <Screen>
-        <TopBar
-          onMenuPress={() => setMenuVisible(true)}
-          avatarUri=""
-          currentXP={0}
-          maxXP={0}
-          currentHP={0}
-          maxHP={0}
-        />
+    <AuthProvider>
+      <TaskProvider>
+        <Screen>
+          <TopBar
+            onMenuPress={() => setMenuVisible(true)}
+            avatarUri=""
+            currentXP={0}
+            maxXP={0}
+            currentHP={0}
+            maxHP={0}
+          />
 
-        <Content>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: APP_BG },
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="tasks" />
-            <Stack.Screen name="add-task" />
-            <Stack.Screen name="character" />
-          </Stack>
-        </Content>
+          <Content>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: APP_BG },
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="tasks" />
+              <Stack.Screen name="add-task" />
+              <Stack.Screen name="character" />
+            </Stack>
+          </Content>
 
-        <SideMenu
-          visible={menuVisible}
-          onClose={() => setMenuVisible(false)}
-          items={[
-            { label: 'Home', route: '/' },
-            { label: 'Zadania', route: '/tasks' },
-            { label: 'Postać', route: '/character' },
-          ]}
-          onSelect={handleSelect}
-        />
-        <NavBar />
-      </Screen>
-    </TaskProvider>
+          <SideMenu
+            visible={menuVisible}
+            onClose={() => setMenuVisible(false)}
+            items={[
+              { label: 'Home', route: '/' },
+              { label: 'Zadania', route: '/tasks' },
+              { label: 'Postać', route: '/character' },
+            ]}
+            onSelect={handleSelect}
+          />
+          <NavBar />
+        </Screen>
+      </TaskProvider>
+    </AuthProvider>
   );
 }
 
