@@ -26,8 +26,6 @@ const TaskContext = createContext<TaskContextValue | undefined>(undefined);
 export function TaskProvider({ children, clearTrigger, user }: { children: ReactNode, clearTrigger?: boolean, user: User | null }) {
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  console.log('DB type: ', typeof firestore);
-
   useEffect(() => {
     if (!user) {
       setTasks([]);
