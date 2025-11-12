@@ -192,18 +192,18 @@ const Actions = styled.View`
   gap: 12px;
 `;
 
-const ActionButton = styled.TouchableOpacity`
+const ActionButton = styled.TouchableOpacity<{ $green?: boolean; $softRed?: boolean }>`
   flex: 1;
   padding: 12px;
   border-radius: 10px;
   align-items: center;
-  background-color: ${({ $green, $softRed }: { $green?: boolean; $softRed?: boolean }) =>
-    $green ? '#33a05a' : $softRed ? '#f2c1c0' : '#ccc'};
+  background-color: ${(props) =>
+    props.$green ? '#33a05a' : props.$softRed ? '#f2c1c0' : '#ccc'};
 `;
 
-const ActionText = styled.Text`
-  color: ${({ $doneGreen, $stopRed }: { $doneGreen?: boolean; $stopRed?: boolean }) =>
-    $doneGreen ? '#fff' : $stopRed ? '#8a2b28' : '#fff'};
+const ActionText = styled.Text<{ $doneGreen?: boolean; $stopRed?: boolean }>`
+  color: ${(props) =>
+    props.$doneGreen ? '#fff' : props.$stopRed ? '#8a2b28' : '#fff'};
   font-size: 16px;
   font-weight: 700;
 `;

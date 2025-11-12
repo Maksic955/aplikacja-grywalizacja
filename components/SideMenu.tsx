@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { Animated, Dimensions, Pressable, StyleSheet } from 'react-native';
 import styled from 'styled-components/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
+import MenuFooter, { LogoutBtn } from './MenuFooter';
 
-type RoutePath = '/' | '/tasks' | '/add-task' | '/character';
-
+type RoutePath = '/' | '/tasks' | '/add-task' | '/character' | '/login' | '/register';
 export type MenuItem = { label: string; route: RoutePath };
 
 interface Props {
@@ -38,6 +39,8 @@ export default function SideMenu({
   const pathname = usePathname();
   const translateX = useRef(new Animated.Value(-width)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
+
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     if (visible) {
@@ -95,6 +98,23 @@ export default function SideMenu({
             </MenuItemBtn>
           );
         })}
+        { user ? (
+          <LogoutBtn onLogout={() => {
+            logout();
+            onClose();
+          }} />
+        ) : (
+          <MenuFooter
+            onLogin={() => {
+              onSelect('/login');
+              onClose();
+            }}
+            onRegister={() => {
+              onSelect('/register');
+              onClose();
+            }}
+          />
+        )}
       </AnimatedContainer>
     </Animated.View>
   );
@@ -129,7 +149,7 @@ const CloseButton = styled.TouchableOpacity`
 
 const MenuItemBtn = styled.TouchableOpacity<ActiveProp>`
   padding-vertical: 14px;
-  border-bottom-width: 1px;
+  border-bottom-width: 3px;
   align-items: flex-start;
 `;
 
@@ -137,4 +157,18 @@ const MenuText = styled.Text<ActiveProp>`
   font-size: 22px;
   color: ${({ $active }: ActiveProp) => ($active ? '#2875d4' : '#333')};
   font-weight: ${({ $active }: ActiveProp) => ($active ? '700' : '400')};
+`;
+
+const OutlineBtn = styled.TouchableOpacity<{ $danger?: boolean }>`
+  flex: 1;
+  padding-vertical: 12px;
+  border-radius: 16px;
+  background-color: #fff;
+  border-width: 3px;
+  border-color: #d9534f;
+  
+  shadow-color: #000;
+  shadow-opacity: 0.2;
+  shadow-radius: 0px;
+  elevation: 0;
 `;
