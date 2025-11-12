@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode, useRef, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { collection, addDoc, getDocs, query, doc, updateDoc } from 'firebase/firestore';
+import { firestore } from '../services/firebase'
 import 'react-native-get-random-values'; 
-import { v4 as uuidv4 } from 'uuid';
+import { User } from '@firebase/auth';
 
 export interface Task {
   id: string;
@@ -17,66 +18,71 @@ interface TaskContextValue {
   tasks: Task[];
   addTask: (t: Omit<Task, 'id'>) => void;
   updateTaskStatus: (id: string, status: Task['status']) => void;
+  clearTrigger?: boolean;
 }
 
 const TaskContext = createContext<TaskContextValue | undefined>(undefined);
 
-const STORAGE_KEY = '@tasks:v1';
-
-const jsonReplacer = (_key: string, value: any) => 
-  value instanceof Date ? value.toISOString() : value;
-
-const reviveTaskDates = (raw: any): Task => ({
-  ...raw,
-  dueDate: new Date(raw.dueDate),
-  createdAt: raw.createdAt ? new Date(raw.createdAt) : undefined,
-});
-
-export function TaskProvider({ children }: { children: ReactNode }) {
+export function TaskProvider({ children, clearTrigger, user }: { children: ReactNode, clearTrigger?: boolean, user: User | null }) {
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  const hydrateRef = useRef(false);
-
   useEffect(() => {
-    (async () => {
+    if (!user) {
+      setTasks([]);
+      return;
+    }
+
+    const loadTasks = async () => {
       try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const revived: Task[] = Array.isArray(parsed) ? parsed.map(reviveTaskDates) : [];
-          setTasks(revived);
-        }
+        const q = query(collection(firestore, 'users', user.uid, 'tasks'));
+        const querySnapshot = await getDocs(q);
+        const loadedTasks: Task[] = [];
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          loadedTasks.push({
+            ...(data as Task),
+            id: docSnap.id,
+            dueDate: new Date(data.dueDate),
+            createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
+          });
+        });
+        setTasks(loadedTasks);
       } catch (e) {
-        console.error('Failed to hydrate tasks from storage:', e);
-      } finally {
-        hydrateRef.current = true;
+        console.error('Błąd w pobieraniu tasków z Firestore:', e);
       }
-    })();
-  }, []);
+    };
 
-  useEffect(() => {
-    if (!hydrateRef.current) return;
-    (async () => {
-      try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks, jsonReplacer)) 
-      } catch (e) {
-        console.warn('Nie udało się zapisać zadań do storage:', e);
-      }
-    })();
-  }, [tasks]);
+    loadTasks();
+  }, [user]);
 
-  const addTask = (t: Omit<Task, 'id'>) => {
-    const newTask: Task = { ...t, status: t.status ?? 'inProgress', id: uuidv4(), createdAt: new Date() };
-    setTasks((prev) => [newTask, ...prev]);
-  };
+  const addTask = async (t: Omit<Task, 'id'>) => {
+    if (!user) return;
+    try {
+      const docRef = await addDoc(collection(firestore, 'users', user.uid, 'tasks'), {
+        ...t, 
+        status: t.status ?? 'inProgress',
+        createdAt: new Date().toISOString(),
+        dueDate: t.dueDate.toISOString(),
+      });
+      const newTask: Task = { ...t, id: docRef.id, status: t.status ?? 'inProgress', createdAt: new Date() };
+      setTasks((prev) => [newTask, ...prev]);
+    } catch (e) {
+      console.error('Błąd przy dodawaniu taska do Firestore:', e);
+    }
+  }
 
-  const updateTaskStatus = (id: string, status: Task['status']) => {
-    setTasks(prev =>
-      prev.map(t => t.id === id ? { ...t, status } : t)
-    )
+  const updateTaskStatus = async (id: string, status: Task['status']) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(firestore, 'users', user.uid, 'tasks', id), { status});
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+    } catch (e) {
+      console.error('Błąd przy aktualizacji statusu taska w Firestore:', e)
+    }
   }
 
   return (
-    <TaskContext.Provider value={{ tasks, addTask, updateTaskStatus }}>
+    <TaskContext.Provider value={{ tasks, addTask, updateTaskStatus, clearTrigger }}>
       {children}
     </TaskContext.Provider>
   );

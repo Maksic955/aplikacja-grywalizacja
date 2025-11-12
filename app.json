@@ -1,6 +1,6 @@
 {
   "expo": {
-    "sdkVersion": "53.0.0",
+    "sdkVersion": "54.0.0",
     "name": "aplikacja-grywalizacja",
     "slug": "aplikacja-grywalizacja",
     "version": "1.0.0",
@@ -33,7 +33,9 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
