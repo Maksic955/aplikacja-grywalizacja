@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import styled from 'styled-components/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -64,7 +64,7 @@ const Screen = styled.SafeAreaView`
 const Header = styled.Text`
   font-size: 18px;
   font-weight: 700;
-  color: #fff;
+  color: black;
   margin: 0 16px 8px;
 `;
 const EmptyWrap = styled.View`
@@ -74,8 +74,7 @@ const EmptyWrap = styled.View`
   padding: 0 16px;
 `;
 const EmptyText = styled.Text`
-  text-align: 
-  center; color: #9aa8b2;
+  text-align: center; color: #9aa8b2;
 `;
 
 const InlineAdd = styled.TouchableOpacity`
