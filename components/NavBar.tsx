@@ -58,7 +58,6 @@ export default function NavBar() {
 }
 
 // Style
-
 const Wrap = styled.View`
   position: absolute;
   left: 0;

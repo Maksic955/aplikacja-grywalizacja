@@ -158,17 +158,3 @@ const MenuText = styled.Text<ActiveProp>`
   color: ${({ $active }: ActiveProp) => ($active ? '#2875d4' : '#333')};
   font-weight: ${({ $active }: ActiveProp) => ($active ? '700' : '400')};
 `;
-
-const OutlineBtn = styled.TouchableOpacity<{ $danger?: boolean }>`
-  flex: 1;
-  padding-vertical: 12px;
-  border-radius: 16px;
-  background-color: #fff;
-  border-width: 3px;
-  border-color: #d9534f;
-  
-  shadow-color: #000;
-  shadow-opacity: 0.2;
-  shadow-radius: 0px;
-  elevation: 0;
-`;
