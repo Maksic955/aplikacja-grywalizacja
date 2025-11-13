@@ -96,7 +96,6 @@ export default function TaskDetailModal({ taskId, onClose }: Props) {
 }
 
 // Style
-
 const Container = styled.View`
   position: absolute;
   top: 80px;
