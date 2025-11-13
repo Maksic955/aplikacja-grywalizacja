@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FlatList, Modal, ScrollView, TouchableWithoutFeedback } from 'react-native';
 import { useRouter } from 'expo-router';
 import styled from 'styled-components/native';
@@ -15,8 +15,8 @@ export default function TasksScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const inProgress = tasks.filter(t => t.status === 'inProgress');
-  const paused     = tasks.filter(t => t.status === 'paused');
-  const done  = tasks.filter(t => t.status === 'done');
+  const paused = tasks.filter(t => t.status === 'paused');
+  const done = tasks.filter(t => t.status === 'done');
 
   return (
     <Screen>

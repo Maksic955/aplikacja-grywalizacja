@@ -1,6 +1,4 @@
-import React from 'react';
 import styled from 'styled-components/native';
-import { Ionicons } from '@expo/vector-icons';
 import { Task } from '@/context/TaskContext';
 import { renderStars, formatLeft, formatDateShort } from '@/utils/taskHelpers';
 
