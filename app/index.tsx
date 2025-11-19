@@ -140,7 +140,7 @@ export default function HomeScreen() {
       <FloatingButton onPress={() => router.push('/add-task')}>
         <Ionicons name="add" size={28} color="#fff" />
       </FloatingButton>
-
+          {/*TODO: Przenieść do osobnego komponentu Menu*/}
       <Modal visible={menuVisible} transparent animationType="fade">
         <MenuOverlay>
           <MenuContainer>
@@ -208,7 +208,7 @@ const FloatingButton = styled.TouchableOpacity`
   elevation: 8;
 `;
 
-// ——— Menu modal styling ———
+// ——— Modal menu style ———
 
 const MenuOverlay = styled.View`
   flex: 1;
