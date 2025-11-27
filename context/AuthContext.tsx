@@ -1,14 +1,18 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User } from 'firebase/auth';
-import { 
+import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
 
-import { auth } from '../services/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { firestore } from '@/services/firebase';
+
+import { auth } from '@/services/firebase';
 import { TaskProvider } from './TaskContext';
+import { UserProvider } from './UserContext';
 
 type AuthCtx = {
   user: User | null;
@@ -38,7 +42,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+
+    const userId = userCred.user.uid;
+
+    await setDoc(doc(firestore, 'users', userId), {
+      createdAt: new Date(),
+    });
+
+    await setDoc(doc(firestore, 'users', userId, 'profile', 'stats'), {
+      hunger: 0,
+      health: 100,
+      xp: 0,
+      level: 1,
+    });
+
+    await setDoc(doc(firestore, 'users', userId, 'tasks', '_init'), {
+      placeholder: true,
+      createdAt: new Date(),
+    });
   };
 
   const logout = async () => {
@@ -48,9 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, initializing, login, register, logout }}>
-      <TaskProvider clearTrigger={clearTrigger} user={user}>
-        {children}
-      </TaskProvider>
+      <UserProvider user={user}>
+        <TaskProvider clearTrigger={clearTrigger} user={user}>
+          {children}
+        </TaskProvider>
+      </UserProvider>
     </AuthContext.Provider>
   );
 }

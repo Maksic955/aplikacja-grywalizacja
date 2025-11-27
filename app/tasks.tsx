@@ -12,17 +12,18 @@ export default function TasksScreen() {
   const router = useRouter();
   const { tasks } = useTasks();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
 
-  const inProgress = tasks.filter(t => t.status === 'inProgress');
-  const paused = tasks.filter(t => t.status === 'paused');
-  const done = tasks.filter(t => t.status === 'done');
+  const inProgress = tasks.filter((t) => t.status === 'inProgress');
+  const paused = tasks.filter((t) => t.status === 'paused');
+  const done = tasks.filter((t) => t.status === 'done');
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
+        {/* W TOKU */}
         <Section>
           <SectionHeader>W toku</SectionHeader>
+
           <FlatList
             data={inProgress}
             scrollEnabled={false}
@@ -31,19 +32,20 @@ export default function TasksScreen() {
             ListEmptyComponent={<EmptyText>Brak zadań – dodaj nowe!</EmptyText>}
             renderItem={({ item }: { item: Task }) => (
               <TaskItem
+                allowShake={true}
                 title={item.title}
                 difficulty={item.difficulty}
-                onPress={() => {
-                  setSelectedTask(item);
-                  setModalVisible(true);
-                }}
+                dueDate={item.dueDate}
+                onPress={() => setSelectedTask(item)}
               />
             )}
           />
         </Section>
 
+        {/* WSTRZYMANE */}
         <Section>
           <SectionHeader>Wstrzymane</SectionHeader>
+
           <FlatList
             data={paused}
             scrollEnabled={false}
@@ -52,54 +54,55 @@ export default function TasksScreen() {
             ListEmptyComponent={<EmptyText>Brak wstrzymanych zadań</EmptyText>}
             renderItem={({ item }: { item: Task }) => (
               <TaskItem
+                allowShake={true}
                 title={item.title}
                 difficulty={item.difficulty}
-                onPress={() => {
-                  setSelectedTask(item);
-                  setModalVisible(true);
-                }}
+                dueDate={item.dueDate}
+                onPress={() => setSelectedTask(item)}
               />
             )}
           />
         </Section>
 
+        {/* WYKONANE */}
         <Section>
           <SectionHeader>Wykonane</SectionHeader>
+
           <FlatList
             data={done}
             scrollEnabled={false}
             keyExtractor={(t) => t.id}
             contentContainerStyle={{ padding: 16 }}
-            ListEmptyComponent={<EmptyText>Brak anulowanych zadań</EmptyText>}
+            ListEmptyComponent={<EmptyText>Brak wykonanych zadań</EmptyText>}
             renderItem={({ item }: { item: Task }) => (
               <TaskItem
+                allowShake={false} // <— ważne: żadnych wstrząsów
                 title={item.title}
                 difficulty={item.difficulty}
-                onPress={() => {
-                  setSelectedTask(item);
-                  setModalVisible(true);
-                }}
+                dueDate={item.dueDate}
+                onPress={() => setSelectedTask(item)}
               />
             )}
           />
         </Section>
       </ScrollView>
-      
-      {/* Modal rozwijający szczegóły zadania  */}
+
+      {/* Modal szczegółów */}
       <Modal visible={!!selectedTask} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setSelectedTask(null)}>
           <Overlay />
         </TouchableWithoutFeedback>
+
         {selectedTask && (
           <TaskDetailModal
-            visible={modalVisible}
+            visible={true}
             taskId={selectedTask.id}
             onClose={() => setSelectedTask(null)}
           />
         )}
       </Modal>
 
-      {/* Przycisk dodania zadania */}
+      {/* FAB */}
       <FloatingButton onPress={() => router.push('/add-task')}>
         <Ionicons name="add" size={28} color="#fff" />
       </FloatingButton>
@@ -107,7 +110,7 @@ export default function TasksScreen() {
   );
 }
 
-/* — Styled components — */
+// STYLES;
 
 const Screen = styled.SafeAreaView`
   flex: 1;
@@ -125,7 +128,7 @@ const SectionHeader = styled.Text`
 
 const Overlay = styled.View`
   flex: 1;
-  background-color: rgba(0,0,0,0.4);
+  background-color: rgba(0, 0, 0, 0.4);
 `;
 
 const EmptyText = styled.Text`

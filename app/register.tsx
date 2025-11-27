@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { useRouter, Link } from "expo-router";
-import { useAuth } from "@/context/AuthContext";
-import { Alert, Pressable } from "react-native";
-import styled from "styled-components/native";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import { Alert, Pressable } from 'react-native';
+import styled from 'styled-components/native';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/services/firebase';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -19,23 +21,30 @@ export default function RegisterScreen() {
 
   const onSubmit = async () => {
     if (!email.trim()) return Alert.alert('Błąd', 'Podaj e-mail.');
-    if (password.length < 6) return Alert.alert('Błąd', 'Hasło musi zawierać co najmniej 6 znaków.');
+    if (password.length < 6)
+      return Alert.alert('Błąd', 'Hasło musi zawierać co najmniej 6 znaków.');
     if (password !== repeat) return Alert.alert('Błąd', 'Hasła się różnią.');
 
     try {
       const fn = auth.signUp ?? auth.register ?? auth.login;
       await fn(email.trim(), password);
+      const sendWelcomeEmail = httpsCallable(functions, 'sendWelcomeEmail');
+      sendWelcomeEmail({ email: email.trim() })
+        .then(() => console.log('Welcome email sent'))
+        .catch((err) => console.error('Error sending welcome email:', err));
+
+      Alert.alert('Sukces!', 'Konto zostało utworzone.');
       router.replace('/');
     } catch (e: any) {
       Alert.alert('Rejestracja nieudana', e?.message ?? 'Spróbuj ponownie.');
     }
-  }
+  };
 
   return (
     <Screen>
       <Title>Utwórz konto</Title>
 
-      <Input 
+      <Input
         placeholder="E-mail"
         keyboardType="email-address"
         autoCapitalize="none"
@@ -43,19 +52,9 @@ export default function RegisterScreen() {
         onChangeText={setEmail}
       />
 
-      <Input 
-        placeholder="Hasło"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <Input placeholder="Hasło" secureTextEntry value={password} onChangeText={setPassword} />
 
-      <Input 
-        placeholder="Powtórz hasło"
-        secureTextEntry
-        value={repeat}
-        onChangeText={setRepeat}
-      />
+      <Input placeholder="Powtórz hasło" secureTextEntry value={repeat} onChangeText={setRepeat} />
 
       <PrimaryButton onPress={onSubmit}>
         <BtnText>Zarejestruj się</BtnText>
@@ -91,7 +90,7 @@ const Input = styled.TextInput`
   padding: 12px;
 `;
 
-const PrimaryButton =styled.TouchableOpacity`
+const PrimaryButton = styled.TouchableOpacity`
   background-color: #2875d4;
   padding: 12px;
   border-radius: 8px;
@@ -113,4 +112,3 @@ const SmallText = styled.Text`
   font-size: 16px;
   color: #000;
 `;
-

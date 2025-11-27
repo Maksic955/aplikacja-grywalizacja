@@ -1,10 +1,9 @@
-import React from 'react';
 import styled from 'styled-components/native';
 
 type Props = {
   onLogin: () => void;
   onRegister: () => void;
-}
+};
 
 export default function MenuFooter({ onLogin, onRegister }: Props) {
   return (
@@ -17,24 +16,24 @@ export default function MenuFooter({ onLogin, onRegister }: Props) {
         <BtnText>Zarejestruj</BtnText>
       </AuthBtn>
     </Footer>
-  )
+  );
 }
 
-export function LogoutBtn({ onLogout }: { onLogout: () => void}) {
+export function LogoutBtn({ onLogout }: { onLogout: () => void }) {
   return (
     <Footer>
-      <LogOutlineBtn onPress={onLogout} style={{ shadowOffset: {width: 3, height: 3}}}>
-        <LgOutBtnText>Wyloguj się</LgOutBtnText>
+      <LogOutlineBtn onPress={onLogout} style={{ shadowOffset: { width: 3, height: 3 } }}>
+        <LgOutBtnText>Wyloguj</LgOutBtnText>
       </LogOutlineBtn>
     </Footer>
-  )
+  );
 }
 
 const Footer = styled.View`
   position: absolute;
   left: 24px;
   right: 24px;
-  bottom: 60px;
+  bottom: 45px;
   gap: 12px;
 `;
 
@@ -54,7 +53,7 @@ const AuthBtn = styled.TouchableOpacity`
   shadow-radius: 0px;
   elevation: 0;
 `;
-  
+
 const BtnText = styled.Text`
   color: #000;
   font-weight: 700;
