@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LoginScrn() {
   const router = useRouter();
-  const { user, login} = useAuth();
+  const { user, login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,16 +18,19 @@ export default function LoginScrn() {
   const onSubmit = async () => {
     try {
       await login(email.trim(), password);
-      router.replace('/');
+      setTimeout(() => {
+        Alert.alert('Witamy ponownie!', 'Tasko się cieszy, że wróciłeś/aś! 😊');
+        router.replace('/');
+      }, 1000);
     } catch (e: any) {
-      Alert.alert('Logowanie nieudane', e?.message ?? 'Spróbuj ponownie.');
+      Alert.alert('Hasło albo e-mail są nieprawidłowe.');
     }
   };
 
   return (
     <Screen>
       <Title>Zaloguj się</Title>
-      <Input 
+      <Input
         placeholder="E-mail"
         keyboardType="email-address"
         autoCapitalize="none"
@@ -35,12 +38,7 @@ export default function LoginScrn() {
         onChangeText={setEmail}
       />
 
-      <Input 
-        placeholder="Hasło"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <Input placeholder="Hasło" secureTextEntry value={password} onChangeText={setPassword} />
 
       <PrimaryButton onPress={onSubmit}>
         <BtnText>Zaloguj</BtnText>
@@ -48,12 +46,12 @@ export default function LoginScrn() {
 
       <SmallRow>
         <SmallText>Nie masz konta? </SmallText>
-        <Pressable onPress={() => router.push('/register')} >
+        <Pressable onPress={() => router.push('/register')}>
           <SmallText>Zarejestruj się</SmallText>
         </Pressable>
       </SmallRow>
     </Screen>
-  )
+  );
 }
 
 const Screen = styled.SafeAreaView`

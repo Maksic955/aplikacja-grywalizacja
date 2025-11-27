@@ -1,94 +1,185 @@
-import React from 'react';
 import styled from 'styled-components/native';
 import { useTasks } from '@/context/TaskContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDateShort } from '@/utils/taskHelpers';
+import ProgressBar from './ProgressBar';
 
-const difficultyToRating = (d: 'Łatwy' | 'Średni' | 'Trudny') => { 
+const difficultyToRating = (d: 'latwy' | 'sredni' | 'trudny') => {
   switch (d) {
-    case 'Łatwy': return 1;
-    case 'Średni': return 3;
-    case 'Trudny': return 5;
-    default: return 1;
+    case 'latwy':
+      return 1;
+    case 'sredni':
+      return 3;
+    case 'trudny':
+      return 5;
+    default:
+      return 1;
   }
-}
+};
+
+const difficultyLabels: Record<'latwy' | 'sredni' | 'trudny', string> = {
+  latwy: 'Łatwy',
+  sredni: 'Średni',
+  trudny: 'Trudny',
+};
+
 interface Props {
-  visible: boolean;
   taskId: string;
+  visible: boolean;
   onClose: () => void;
 }
 
 export default function TaskDetailModal({ taskId, onClose }: Props) {
-  const { tasks, updateTaskStatus } = useTasks();
-  const task = tasks.find(t => t.id === taskId);
+  const { tasks, updateTaskStatus, completeTask } = useTasks();
+
+  const task = tasks.find((t) => t.id === taskId);
   if (!task) return null;
 
-  const MS = 24 * 60 * 60 * 1000;
-  const now = new Date();
-  const daysLeft = Math.max(0, Math.ceil((task.dueDate.getTime() - now.getTime()) / MS));
-  const totalDays = Math.max(daysLeft, 7);
-  const progress = Math.min(1, Math.max(0, (totalDays - daysLeft) / totalDays));
-  const daysLeftLabel =
-    daysLeft === 0 ? 'dzisiaj' : `${daysLeft} ${daysLeft === 1 ? 'dzień' : 'dni'}`;
-  const dueLabel = formatDateShort(task.dueDate)
+  const dueDate = task.dueDate instanceof Date ? task.dueDate : new Date(task.dueDate);
 
+  const createdAt = task.createdAt
+    ? task.createdAt instanceof Date
+      ? task.createdAt
+      : new Date(task.createdAt)
+    : new Date(Date.now() - 1);
+
+  const now = new Date();
+
+  const isLate = now.getTime() > dueDate.getTime();
+
+  const totalMs = Math.max(dueDate.getTime() - createdAt.getTime(), 1);
+  const elapsedMs = Math.max(now.getTime() - createdAt.getTime(), 0);
+
+  const progress = Math.min(1, Math.max(0, elapsedMs / totalMs));
+
+  const diffMs = dueDate.getTime() - now.getTime();
+
+  const minutesLeft = Math.floor(diffMs / 60000);
+  const hoursLeft = Math.floor(diffMs / 3600000);
+  const daysLeft = Math.floor(diffMs / 86400000);
+
+  let leftLabel = '';
+
+  if (minutesLeft <= 0) leftLabel = '0 min';
+  else if (minutesLeft < 60) leftLabel = `${minutesLeft} min`;
+  else if (hoursLeft < 24) leftLabel = `${hoursLeft} godz`;
+  else leftLabel = `${daysLeft} dni`;
+
+  const dueLabel = formatDateShort(dueDate);
+
+  let completedAtLabel = '';
+  if (task.completedAt) {
+    const doneDate =
+      task.completedAt instanceof Date ? task.completedAt : new Date(task.completedAt);
+    completedAtLabel = formatDateShort(doneDate);
+  }
 
   const StarsRow = ({ rating }: { rating: number }) => (
-  <StarsWrap>
-    {Array.from({ length: 5 }).map((_, i) => (
-      <Ionicons
-        key={i}
-        name={i < rating ? 'star' : 'star-outline'}
-        size={18}
-        color={i < rating ? '#33a05a' : '#9db2c6'}
-        style={{ marginRight: 4 }}
-      />
-    ))}
-  </StarsWrap>
+    <StarsWrap>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Ionicons
+          key={i}
+          name={i < rating ? 'star' : 'star-outline'}
+          size={18}
+          color={i < rating ? '#33a05a' : '#9db2c6'}
+          style={{ marginRight: 4 }}
+        />
+      ))}
+    </StarsWrap>
   );
+
+  const onPressComplete = async () => {
+    await completeTask(task.id, task.difficulty);
+    onClose();
+  };
+
+  const onPressPause = async () => {
+    await updateTaskStatus(task.id, 'paused');
+    onClose();
+  };
+
+  const onPressResume = async () => {
+    await updateTaskStatus(task.id, 'inProgress');
+    onClose();
+  };
 
   return (
     <Container>
-      <CloseButton onPress={onClose} accessibilityLabel="Zamknij">
-          <Ionicons name="close" size={26} color="#333" />
+      <CloseButton onPress={onClose}>
+        <Ionicons name="close" size={26} color="#333" />
       </CloseButton>
       <HeaderRow>
-          <Title numberOfLines={1}>{task.title}</Title>
-          <StarsRow rating={difficultyToRating(task.difficulty)} />
+        <Title numberOfLines={1}>{task.title}</Title>
+        <StarsRow rating={difficultyToRating(task.difficulty)} />
       </HeaderRow>
-      
-      <Label>Trudność: {task.difficulty}</Label>
-
-      {!!task.description && (
+      <Label>Trudność: {difficultyLabels[task.difficulty]}</Label>
+      {task.description ? (
         <>
           <Label>Opis:</Label>
           <Description>{task.description}</Description>
         </>
+      ) : null}
+
+      {task.status === 'done' && (
+        <>
+          <MetaRow>
+            <MetaText>Pozostały czas: Skończone</MetaText>
+            <MetaTextRight>Data wykonania: {completedAtLabel || 'Brak'}</MetaTextRight>
+          </MetaRow>
+
+          <Actions>
+            <ActionText>Zadanie zostało wykonane! Powodzenia przy kolejnym</ActionText>
+          </Actions>
+        </>
       )}
-      
-      <MetaRow>
-        <MetaText>Pozostały czas: {daysLeftLabel}</MetaText>
-        <MetaTextRight>Termin wykonania: {dueLabel}</MetaTextRight>
-      </MetaRow>
-      <ProgressTrack>
-        <ProgressFill style={{ width: `${Math.round(progress * 100)}%` }} />
-      </ProgressTrack>
 
-      {task.status === 'inProgress' ? (
-        <Actions>
-          <ActionButton $softRed onPress={() => { updateTaskStatus(task.id, 'paused'); onClose(); }}>
-            <ActionText $stopRed>Wstrzymaj</ActionText>
-          </ActionButton>
+      {task.status !== 'done' && isLate && (
+        <>
+          <LateBox>
+            <LateTitle>UWAGA!!! CZAS MINĄŁ!!!</LateTitle>
+            <LateSubtitle>Tasko jest niezadowolony.</LateSubtitle>
+          </LateBox>
 
-          <ActionButton $green onPress={() => { updateTaskStatus(task.id, 'done'); onClose(); }}>
-            <ActionText $doneGreen>Wykonane</ActionText>
-          </ActionButton>
-        </Actions>
-      ) : (
+          <Actions>
+            <ActionButton $softRed onPress={onPressPause}>
+              <ActionText $stopRed>Wstrzymaj</ActionText>
+            </ActionButton>
+
+            <ActionButton $green onPress={onPressComplete}>
+              <ActionText $doneGreen>Wykonane</ActionText>
+            </ActionButton>
+          </Actions>
+        </>
+      )}
+
+      {task.status === 'inProgress' && !isLate && (
+        <>
+          <MetaRow>
+            <MetaText>Pozostały czas: {leftLabel}</MetaText>
+            <MetaTextRight>Termin: {dueLabel}</MetaTextRight>
+          </MetaRow>
+
+          <ProgressTrack>
+            <ProgressBar value={progress * 100} maxValue={100} height={10} fillColor="#33a05a" />
+          </ProgressTrack>
+
+          <Actions>
+            <ActionButton $softRed onPress={onPressPause}>
+              <ActionText $stopRed>Wstrzymaj</ActionText>
+            </ActionButton>
+
+            <ActionButton $green onPress={onPressComplete}>
+              <ActionText $doneGreen>Wykonane</ActionText>
+            </ActionButton>
+          </Actions>
+        </>
+      )}
+
+      {task.status === 'paused' && (
         <Actions>
-          <RestoreButton onPress={() => { updateTaskStatus(task.id, 'inProgress'); onClose(); }}>
-            <ActionText>Przywróć</ActionText>
-          </RestoreButton>
+          <ActionButton $green onPress={onPressResume}>
+            <ActionText $doneGreen>Kontynuuj</ActionText>
+          </ActionButton>
         </Actions>
       )}
     </Container>
@@ -96,6 +187,7 @@ export default function TaskDetailModal({ taskId, onClose }: Props) {
 }
 
 // Style
+
 const Container = styled.View`
   position: absolute;
   top: 80px;
@@ -169,7 +261,6 @@ const MetaTextRight = styled(MetaText)`
   color: #444;
 `;
 
-// Pasek progresu
 const ProgressTrack = styled.View`
   margin-top: 8px;
   height: 10px;
@@ -178,13 +269,26 @@ const ProgressTrack = styled.View`
   overflow: hidden;
 `;
 
-const ProgressFill = styled.View`
-  height: 100%;
-  background-color: #33a05a;
+const LateBox = styled.View`
+  margin-top: 14px;
+  padding: 12px;
   border-radius: 8px;
+  background-color: #ffe2e2;
+  border: 1px solid #ffb3b3;
 `;
 
-// Przcysiki
+const LateTitle = styled.Text`
+  font-size: 15px;
+  font-weight: 700;
+  color: #c80000;
+`;
+
+const LateSubtitle = styled.Text`
+  margin-top: 4px;
+  font-size: 12px;
+  color: #933;
+`;
+
 const Actions = styled.View`
   margin-top: 16px;
   flex-direction: row;
@@ -196,25 +300,11 @@ const ActionButton = styled.TouchableOpacity<{ $green?: boolean; $softRed?: bool
   padding: 12px;
   border-radius: 10px;
   align-items: center;
-  background-color: ${(props) =>
-    props.$green ? '#33a05a' : props.$softRed ? '#f2c1c0' : '#ccc'};
+  background-color: ${(props) => (props.$green ? '#33a05a' : props.$softRed ? '#f2c1c0' : '#ccc')};
 `;
 
 const ActionText = styled.Text<{ $doneGreen?: boolean; $stopRed?: boolean }>`
-  color: ${(props) =>
-    props.$doneGreen ? '#fff' : props.$stopRed ? '#8a2b28' : '#fff'};
+  color: ${(props) => (props.$doneGreen ? '#fff' : props.$stopRed ? '#8a2b28' : '#fff')};
   font-size: 16px;
   font-weight: 700;
-`;
-
-const RestoreButton = styled.TouchableOpacity`
-  flex: 1;
-  padding: 12px;
-  border-radius: 10px;
-  align-items: center;
-  background-color: #2875d4;
-  shadow-color: #000;
-  shadow-opacity: 0.08;
-  shadow-radius: 6px;
-  elevation: 2;
 `;

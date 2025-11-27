@@ -1,10 +1,17 @@
-import React, { useEffect, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { Animated, Dimensions, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Dimensions, Pressable, StyleSheet } from 'react-native';
 import styled from 'styled-components/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 import MenuFooter, { LogoutBtn } from './MenuFooter';
+
+import Animated, {
+  SharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolate,
+} from 'react-native-reanimated';
 
 type RoutePath = '/' | '/tasks' | '/add-task' | '/character' | '/login' | '/register';
 export type MenuItem = { label: string; route: RoutePath };
@@ -15,6 +22,7 @@ interface Props {
   items: MenuItem[];
   onSelect: (route: RoutePath) => void;
   width?: number;
+  translateX: SharedValue<number>;
 }
 
 const RAW_WIDTH = Math.min(320, Dimensions.get('window').width * 0.8);
@@ -27,7 +35,7 @@ const isActiveRoute = (pathname: string, route: RoutePath) => {
   const b = normalize(route);
   if (b === '/') return a === '/';
   return a === b || a.startsWith(b + '/');
-}
+};
 
 export default function SideMenu({
   visible,
@@ -35,26 +43,21 @@ export default function SideMenu({
   items,
   onSelect,
   width = RAW_WIDTH,
+  translateX,
 }: Props) {
   const pathname = usePathname();
-  const translateX = useRef(new Animated.Value(-width)).current;
-  const backdrop = useRef(new Animated.Value(0)).current;
-
   const { user, logout } = useAuth();
 
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(translateX, { toValue: 0, duration: 250, useNativeDriver: true }),
-        Animated.timing(backdrop, { toValue: 1, duration: 250, useNativeDriver: true }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateX, { toValue: -width, duration: 200, useNativeDriver: true }),
-        Animated.timing(backdrop, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [visible, translateX, backdrop, width]);
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const backdropStyle = useAnimatedStyle(() => {
+    const progress = interpolate(translateX.value, [-width, 0], [0, 1], Extrapolate.CLAMP);
+    return {
+      backgroundColor: `rgba(0,0,0,${0.4 * progress})`,
+    };
+  });
 
   return (
     <Animated.View
@@ -62,22 +65,16 @@ export default function SideMenu({
       style={[StyleSheet.absoluteFillObject, { zIndex: 1000 }]}
     >
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-        <Animated.View
-          style={{
-            flex: 1,
-            backgroundColor: backdrop.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.4)'],
-            }),
-          }}
-        />
+        <Animated.View style={[{ flex: 1 }, backdropStyle]} />
       </Pressable>
 
       <AnimatedContainer
-        style={{
-          width,
-          transform: [{ translateX }],
-        }}
+        style={[
+          {
+            width,
+          },
+          slideStyle,
+        ]}
       >
         <CloseButton onPress={onClose}>
           <Ionicons name="close" size={24} color="#333" />
@@ -98,11 +95,23 @@ export default function SideMenu({
             </MenuItemBtn>
           );
         })}
-        { user ? (
-          <LogoutBtn onLogout={() => {
-            logout();
-            onClose();
-          }} />
+
+        {user ? (
+          <UserSection>
+            <EmailWrapper>
+              <EmailText>Zalogowano jako:</EmailText>
+              <EmailValue>{user.email}</EmailValue>
+            </EmailWrapper>
+
+            <LogoutWrapper>
+              <LogoutBtn
+                onLogout={() => {
+                  logout();
+                  onClose();
+                }}
+              />
+            </LogoutWrapper>
+          </UserSection>
         ) : (
           <MenuFooter
             onLogin={() => {
@@ -120,7 +129,8 @@ export default function SideMenu({
   );
 }
 
-// Style
+// styles
+
 const Panel = styled.View`
   position: absolute;
   top: 0;
@@ -157,4 +167,34 @@ const MenuText = styled.Text<ActiveProp>`
   font-size: 22px;
   color: ${({ $active }: ActiveProp) => ($active ? '#2875d4' : '#333')};
   font-weight: ${({ $active }: ActiveProp) => ($active ? '700' : '400')};
+`;
+
+const UserSection = styled.View`
+  flex: 1;
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 28px;
+`;
+
+const EmailWrapper = styled.View`
+  margin-bottom: 120px;
+  padding-horizontal: 4px;
+  align-items: center;
+`;
+
+const LogoutWrapper = styled.View`
+  margin-bottom: 8px;
+  width: 100%;
+  align-items: center;
+`;
+
+const EmailText = styled.Text`
+  color: #000;
+  font-size: 14px;
+`;
+
+const EmailValue = styled.Text`
+  color: #000;
+  font-size: 16px;
+  font-weight: 600;
 `;

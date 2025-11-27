@@ -14,14 +14,7 @@ interface TopBarProps {
   maxHP: number;
 }
 
-export default function TopBar({ 
-  onMenuPress, 
-  avatarUri, 
-  currentXP, 
-  maxXP, 
-  currentHP, 
-  maxHP 
-  }: TopBarProps) {
+export default function TopBar({ onMenuPress, avatarUri, currentXP, maxXP }: TopBarProps) {
   return (
     <Container>
       <LeftSection>
@@ -33,15 +26,9 @@ export default function TopBar({
       <RightSection>
         <BarsContainer>
           <ProgressRow>
-            <BarLabel>HP</BarLabel>
-            <BarWrapper>
-              <ProgressBar value={currentHP} maxValue={maxHP} />
-            </BarWrapper>
-          </ProgressRow>
-          <ProgressRow>
             <BarLabel>XP</BarLabel>
             <BarWrapper>
-              <ProgressBar value={currentXP} maxValue={maxXP} />
+              <ProgressBar value={currentXP} maxValue={maxXP} height={20} />
             </BarWrapper>
           </ProgressRow>
         </BarsContainer>
@@ -74,7 +61,7 @@ const LeftSection = styled.View`
 `;
 
 const MenuButton = styled.TouchableOpacity`
-  padding: 8px; 
+  padding: 8px;
 `;
 
 const RightSection = styled.View`
@@ -99,10 +86,11 @@ const ProgressRow = styled.View`
   flex-direction: row;
   align-items: center;
   margin-vertical: 2px;
+  gap: 6px;
 `;
 
 const BarLabel = styled.Text`
-  font-size: 12px;
+  font-size: 16px;
   margin-right: 4px;
   color: #333;
 `;

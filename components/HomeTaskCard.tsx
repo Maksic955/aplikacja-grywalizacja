@@ -1,69 +1,181 @@
 import styled from 'styled-components/native';
+import { Animated } from 'react-native';
+import { useEffect, useRef } from 'react';
+
 import { Task } from '@/context/TaskContext';
-import { renderStars, formatLeft, formatDateShort } from '@/utils/taskHelpers';
+import { renderStars, formatDateShort } from '@/utils/taskHelpers';
 
 type Props = {
   task: Task;
-  onPause?: () => void;  
+  onPause?: () => void;
   onDone?: () => void;
 };
 
 export default function HomeTaskCard({ task, onPause, onDone }: Props) {
+  // Daty
+  const rawDue = task.dueDate as any;
+  const dueDate =
+    rawDue instanceof Date ? rawDue : rawDue?.toDate ? rawDue.toDate() : new Date(rawDue);
+
+  const rawCreated = (task as any).createdAt;
+  const createdAt =
+    rawCreated instanceof Date
+      ? rawCreated
+      : rawCreated?.toDate
+        ? rawCreated.toDate()
+        : new Date(Date.now() - 1);
+
   const now = Date.now();
-  const due = new Date(task.dueDate).getTime();
-  const start = now - 24 * 3600 * 1000;
-  const total = Math.max(due - start, 1);
-  const left = Math.max(due - now, 0);
-  const progress = Math.min(1, Math.max(0, 1 - left / total));
-  const leftLabel = formatLeft(left);
-  const dueLabel = formatDateShort(task.dueDate);
+  const dueTs = dueDate.getTime();
+  const createdTs = createdAt.getTime();
+  const isLate = now > dueTs;
+
+  // Progress
+  const total = Math.max(dueTs - createdTs, 1);
+  const elapsed = Math.max(now - createdTs, 0);
+  const progress = Math.min(1, Math.max(0, elapsed / total));
+
+  const diff = dueTs - now;
+  const dueLabel = formatDateShort(dueDate);
+
+  let leftLabel = '';
+  if (diff <= 0) leftLabel = '0 min';
+  else {
+    const min = Math.floor(diff / 60000);
+    const h = Math.floor(diff / 3600000);
+    const d = Math.floor(diff / 86400000);
+
+    if (min < 60) leftLabel = `${min} min`;
+    else if (h < 24) leftLabel = `${h} godz`;
+    else leftLabel = `${d} dni`;
+  }
+
+  // animacje
+
+  // Wstrząsaniecie
+  const shakeX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isLate) return;
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shakeX, {
+          toValue: 6,
+          duration: 60,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: -6,
+          duration: 60,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 2,
+          duration: 50,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 0,
+          duration: 50,
+          useNativeDriver: true,
+        }),
+        Animated.delay(2500),
+      ]),
+    ).start();
+  }, [isLate]);
+
+  // pulsowanie
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isLate) return;
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, [isLate]);
 
   return (
-    <Card>
-      <TopRow>
-        <Title numberOfLines={1}>{task.title}</Title>
+    <Wrapper>
+      {/** Poświata */}
+      {isLate && <PulseOverlay style={{ opacity: pulse }} />}
 
-        <Stars>
-          {renderStars(task.difficulty)}
-        </Stars>
-      </TopRow>
+      <AnimatedCard style={{ transform: [{ translateX: isLate ? shakeX : 0 }] }}>
+        <TopRow>
+          <Title numberOfLines={1}>{task.title}</Title>
+          <Stars>{renderStars(task.difficulty)}</Stars>
+        </TopRow>
 
-      {!!task.description && (
-        <Desc numberOfLines={6}>{task.description}</Desc>
-      )}
+        {!!task.description && <Desc numberOfLines={6}>{task.description}</Desc>}
 
-      <MetaRow>
-        <MetaText>Pozostały czas: {leftLabel}</MetaText>
-        <MetaText>Termin wykonania: {dueLabel}</MetaText>
-      </MetaRow>
+        {isLate ? (
+          <LateBox>
+            <LateTitle>UWAGA!!! CZAS MINĄŁ!!!</LateTitle>
+            <LateSub>Tasko jest niezadowolony.</LateSub>
+          </LateBox>
+        ) : (
+          <>
+            <MetaRow>
+              <MetaText>Pozostały czas: {leftLabel}</MetaText>
+              <MetaText>Termin wykonania: {dueLabel}</MetaText>
+            </MetaRow>
 
-      <Track>
-        <Fill style={{ width: `${progress * 100}%` }} />
-      </Track>
+            <Track>
+              <Fill style={{ width: `${progress * 100}%` }} />
+            </Track>
+          </>
+        )}
 
-      <ButtonsRow>
-        <StopBtn activeOpacity={0.85} onPress={onPause}>
-          <StopText>Zatrzymaj zadanie</StopText>
-        </StopBtn>
+        <ButtonsRow>
+          <StopBtn activeOpacity={0.85} onPress={onPause}>
+            <StopText>Zatrzymaj zadanie</StopText>
+          </StopBtn>
 
-        <DoneBtn activeOpacity={0.9} onPress={onDone}>
-          <DoneText>Wykonane</DoneText>
-        </DoneBtn>
-      </ButtonsRow>
-    </Card>
+          <DoneBtn activeOpacity={0.9} onPress={onDone}>
+            <DoneText>Wykonane</DoneText>
+          </DoneBtn>
+        </ButtonsRow>
+      </AnimatedCard>
+    </Wrapper>
   );
 }
 
-// Style
-const Card = styled.View`
+// STYLES
+
+const Wrapper = styled.View`
+  position: relative;
+`;
+
+const PulseOverlay = styled(Animated.View)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 16px;
+  background-color: rgba(255, 0, 0, 0.4);
+  z-index: 1;
+`;
+
+const AnimatedCard = styled(Animated.View)`
   margin: 12px 16px 0;
   padding: 14px;
   border-radius: 12px;
   background-color: #fff;
-  shadow-color: #000;
-  shadow-opacity: 0.1;
-  shadow-radius: 10px;
   elevation: 6;
+  z-index: 2;
 `;
 
 const TopRow = styled.View`
@@ -113,6 +225,26 @@ const Track = styled.View`
 const Fill = styled.View`
   height: 100%;
   background-color: #33c24d;
+`;
+
+const LateBox = styled.View`
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: #ffe2e2;
+  border: 1px solid #ffb3b3;
+`;
+
+const LateTitle = styled.Text`
+  font-size: 15px;
+  font-weight: 700;
+  color: #c80000;
+`;
+
+const LateSub = styled.Text`
+  font-size: 12px;
+  margin-top: 4px;
+  color: #a33;
 `;
 
 const ButtonsRow = styled.View`
