@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable } from 'react-native';
 import styled from 'styled-components/native';
-import {Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginScrn() {
