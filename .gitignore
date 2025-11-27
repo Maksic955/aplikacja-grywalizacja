@@ -1,39 +1,101 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ============================
+#  ENV / SECRET FILES
+# ============================
+.env
+*.env
+.env.*
+.env.local
+.env.development
+.env.production
+firebase-service-account.json
+google-services.json
+GoogleService-Info.plist
 
-# dependencies
+# ============================
+#  NODE / BACKEND
+# ============================
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
 
-# Expo
-.expo/
+# build output
 dist/
-web-build/
+build/
+out/
+.tmp/
+temp/
+tmp/
+
+# local dev files
+*.pid
+*.seed
+*.pid.lock
+
+# ============================
+#  EXPO / REACT NATIVE
+# ============================
+.expo/
+.expo-shared/
 expo-env.d.ts
 
-# Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# Metro bundler
+.metro/
+metro-cache/
+.cache/
+*.packager
+*.bundle
 
-# Metro
-.metro-health-check*
+# iOS build artifacts
+ios/Pods/
+ios/build/
+ios/*.xcodeproj/project.xcworkspace/
+ios/*.xcworkspace/
+ios/*.xcuserstate
+ios/*.xcuserdata/
+ios/.DS_Store
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/*.jks
+android/key.properties
 
-# macOS
+# ============================
+#  EDITOR SETTINGS
+# ============================
+.vscode/
+.idea/
+*.swp
+
+# ============================
+#  SYSTEM FILES
+# ============================
 .DS_Store
-*.pem
+Thumbs.db
 
-# local env files
-functions/.env
-.env*.local
+# ============================
+#  LOGS
+# ============================
+logs
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# typescript
-*.tsbuildinfo
+# ============================
+#  TEST / DEBUG
+# ============================
+coverage/
+*.lcov
 
-app-example
+# ============================
+#  MISC
+# ============================
+*.iml
+*.rej
+*.orig
