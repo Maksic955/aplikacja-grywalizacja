@@ -109,4 +109,4 @@ Aby uruchomić aplikację lokalnie, wykonaj poniższe kroki.
 
 ## 👨‍💻 Autor
 
-Projekt tworzony przez Maksymilian Sokalskiego jako aplikacja do zarządzania zadaniami z elementem grywalizacji w ramach **pracy inżynierskiej / projektu studenckiego**.
+Projekt tworzony przez **Maksymilian Sokalskiego** jako aplikacja do zarządzania zadaniami z elementem grywalizacji w ramach **pracy inżynierskiej / projektu studenckiego**.
