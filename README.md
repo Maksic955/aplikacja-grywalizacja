@@ -47,10 +47,11 @@ Projekt ma na celu zwiększenie zaangażowania użytkownika w wykonywanie codzie
     * `Zadania`
     * `Postać`
 * **Boczne menu (SideMenu):** Pełna nawigacja po aplikacji:
-    * `Home` (`/`)
-    * `Zadania` (`/tasks`)
-    * `Postać` (`/character`)
-    * `Ustawienia` (`/settings`)
+    * `Home` 
+    * `Zadania` 
+    * `Postać`
+    * `Ustawienia`
+    * `Wyzwania`
 * **Modal profilu:** Wyświetlany po kliknięciu w avatar, zawiera:
     * **Nick** i **adres e-mail** użytkownika.
     * Przycisk **"Ustawienia"**.
@@ -108,4 +109,4 @@ Aby uruchomić aplikację lokalnie, wykonaj poniższe kroki.
 
 ## 👨‍💻 Autor
 
-Projekt tworzony jako aplikacja grywalizacyjna wspierająca produktywność i rozwój użytkownika w ramach **pracy inżynierskiej / projektu studenckiego**.
+Projekt tworzony przez Maksymilian Sokalskiego jako aplikacja do zarządzania zadaniami z elementem grywalizacji w ramach **pracy inżynierskiej / projektu studenckiego**.
