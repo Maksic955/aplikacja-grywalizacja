@@ -1,50 +1,112 @@
-# Welcome to your Expo app 👋
+# 📱 Aplikacja Grywalizacyjna – React Native + Expo
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Aplikacja mobilna wspierająca produktywność poprzez mechanizmy grywalizacji.**
 
-## Get started
+Projekt ma na celu zwiększenie zaangażowania użytkownika w wykonywanie codziennych zadań poprzez system nagród. Użytkownik zdobywa **punkty doświadczenia (XP)**, wykonuje zadania, rozwija swoją postać i personalizuje profil.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 🎯 Główne funkcjonalności
 
-2. Start the app
+### 👤 Profil użytkownika
 
-   ```bash
+* **Autentykacja (Firebase Authentication):**
+    * Logowanie i rejestracja.
+* **Edycja Danych:**
+    * Inline edycja nicku z przyciskami akcji: "Zmień tekst", "Zapisz", "Anuluj".
+    * Zmiana hasła w **modalu** (wymaga podania starego hasła do reautentykacji) z **walidacją** nowego hasła (długość, cyfra, znak specjalny, potwierdzenie).
+* **Avatar:**
+    * Ustawianie/zmiana avatara z **galerii** urządzenia (wykorzystanie `expo-image-picker`).
+    * Przechowywanie obrazu w **Firebase Storage** i jego URL w **Cloud Firestore**.
+
+### 🧙‍♂️ Postać i statystyki
+
+* **Ekran "Postać":** Wyświetlanie kluczowych parametrów postaci:
+    * **XP** (`XP / maxXp`)
+    * **Zdrowie** (`health / maxHealth`)
+    * **Głód** (`hunger / maxHunger`)
+    * **Poziom** (`level`)
+* **Wizualizacja:** Prezentacja statystyk za pomocą dedykowanego komponentu **ProgressBar**.
+* **Spójność Danych:** Ujednolicone dane XP wykorzystywane zarówno na ekranie **"Postać"**, jak i na **pasku XP w TopBarze**.
+
+### ✅ Zadania
+
+* Lista **bieżących zadań** użytkownika.
+* Możliwość **dodawania nowych zadań**.
+* **Zarządzanie stanem** zadań (np. oznaczanie jako wykonane).
+* Dane zadań przechowywane **per użytkownik w Cloud Firestore**.
+
+### 🧭 Nawigacja i UI
+
+* **Górny pasek (TopBar):**
+    * Przycisk **menu** (otwierający boczne menu).
+    * Pasek **XP** (`ProgressBar`).
+    * Okrągły **avatar** (miniatura zdjęcia z profilu).
+* **Dolny pasek (NavBar):** Zakładki główne:
+    * `Home`
+    * `Zadania`
+    * `Postać`
+* **Boczne menu (SideMenu):** Pełna nawigacja po aplikacji:
+    * `Home` 
+    * `Zadania` 
+    * `Postać`
+    * `Ustawienia`
+    * `Wyzwania`
+* **Modal profilu:** Wyświetlany po kliknięciu w avatar, zawiera:
+    * **Nick** i **adres e-mail** użytkownika.
+    * Przycisk **"Ustawienia"**.
+    * Przycisk **"Wyloguj"**.
+
+---
+
+## 🛠 Wykorzystane technologie
+
+Projekt został zbudowany przy użyciu nowoczesnego ekosystemu mobilnego:
+
+* **React Native + Expo**
+* **Expo Router** (do nawigacji)
+* **Styled Components** (do stylizacji)
+* **Firebase Authentication**
+* **Cloud Firestore**
+* **Firebase Storage**
+* **React Native Gesture Handler**
+* **React Native Reanimated**
+
+---
+
+## ▶️ Uruchamianie projektu
+
+Aby uruchomić aplikację lokalnie, wykonaj poniższe kroki.
+
+1.  **Klonowanie repozytorium** (jeśli nie zostało jeszcze zrobione).
+2.  **Instalacja zależności:**
+
+    ```bash
+    npm install
+    ```
+
+3.  **Uruchomienie aplikacji w trybie deweloperskim:**
+
+    ```bash
     npx expo start
-   ```
+    ```
 
-In the output, you'll find options to open the app in a
+4.  **Dostęp do aplikacji:** Po uruchomieniu serwera Expo, możesz:
+    * Zeskanować **kod QR** w aplikacji **Expo Go** (Android / iOS).
+    * Uruchomić projekt w **Android Emulator**.
+    * Uruchomić projekt w **iOS Simulator**.
+    * Uruchomić aplikację w przeglądarce (tryb web).
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 📚 Przydatne linki
 
-## Get a fresh project
+* Dokumentacja React Native: [https://reactnative.dev](https://reactnative.dev)
+* Dokumentacja Expo: [https://docs.expo.dev](https://docs.expo.dev)
+* Dokumentacja Firebase: [https://firebase.google.com/docs](https://firebase.google.com/docs)
 
-When you're ready, run:
+---
 
-```bash
-npm run reset-project
-```
+## 👨‍💻 Autor
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Projekt tworzony przez **Maksymilian Sokalskiego** jako aplikacja do zarządzania zadaniami z elementem grywalizacji w ramach **pracy inżynierskiej / projektu studenckiego**.
