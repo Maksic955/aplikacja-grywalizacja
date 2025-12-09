@@ -12,6 +12,8 @@ export interface ProfileData {
   maxHealth: number;
   maxHunger: number;
   maxXp: number;
+  nickname: string | null;
+  avatarUrl: string | null;
 }
 
 interface UserContextValue {
@@ -59,6 +61,9 @@ export function UserProvider({ children, user }: { children: ReactNode; user: Us
           maxXp: safeNumber(data.maxXp, 300),
           health: safeNumber(data.health, safeNumber(data.maxHealth, 300)),
           hunger: safeNumber(data.hunger, 0),
+
+          nickname: typeof data.nickname === 'string' ? data.nickname : null,
+          avatarUrl: typeof data.avatarUrl === 'string' ? data.avatarUrl : null,
         };
 
         setProfile(parsed);

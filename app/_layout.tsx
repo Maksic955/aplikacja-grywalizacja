@@ -1,19 +1,28 @@
-// app/_layout.tsx
 import { useEffect, useState } from 'react';
 import { Dimensions, Text } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
+import { useSharedValue, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { Stack, useRouter, usePathname, SplashScreen } from 'expo-router';
 import styled from 'styled-components/native';
 import { useFonts, Nunito_400Regular, Nunito_700Bold } from '@expo-google-fonts/nunito';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { useUserProfile } from '@/context/UserContext';
+import { ChallengesProvider } from '@/context/ChallengesContext'; // ← DODANE
 import TopBar from '@/components/TopBar';
 import SideMenu from '@/components/SideMenu';
 import NavBar from '@/components/NavBar';
 import EntryPage from './entry-page';
 
-type RoutePath = '/' | '/tasks' | '/add-task' | '/character' | '/login' | '/register';
+type RoutePath =
+  | '/'
+  | '/tasks'
+  | '/add-task'
+  | '/character'
+  | '/login'
+  | '/register'
+  | '/settings'
+  | '/challenges';
 
 const APP_BG = '#F5F5DC';
 const SIDE_WIDTH = Math.min(320, Dimensions.get('window').width * 0.8);
@@ -22,7 +31,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <LayoutWithAuth />
+        <ChallengesProvider>
+          <LayoutWithAuth />
+        </ChallengesProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );
@@ -31,6 +42,7 @@ export default function RootLayout() {
 function LayoutWithAuth() {
   const currentRoute = usePathname();
   const { user, initializing } = useAuth();
+  const { profile } = useUserProfile();
   const router = useRouter();
 
   const [fontsLoaded] = useFonts({
@@ -106,10 +118,6 @@ function LayoutWithAuth() {
       runOnJS(setMenuVisible)(shouldOpen);
     });
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
   const handleSelect = (route: RoutePath) => {
     closeMenu();
     router.push(route as any);
@@ -129,14 +137,7 @@ function LayoutWithAuth() {
   return (
     <GestureDetector gesture={panGesture}>
       <Screen>
-        <TopBar
-          onMenuPress={openMenu}
-          avatarUri=""
-          currentXP={0}
-          maxXP={0}
-          currentHP={0}
-          maxHP={0}
-        />
+        <TopBar onMenuPress={openMenu} currentXP={profile?.xp ?? 0} maxXP={profile?.maxXp ?? 100} />
 
         <Content>
           <Stack
@@ -150,6 +151,7 @@ function LayoutWithAuth() {
             <Stack.Screen name="tasks" />
             <Stack.Screen name="add-task" />
             <Stack.Screen name="character" />
+            <Stack.Screen name="challenges" />
           </Stack>
         </Content>
 
@@ -157,12 +159,13 @@ function LayoutWithAuth() {
           visible={menuVisible}
           onClose={closeMenu}
           items={[
-            { label: 'Home', route: '/' },
-            { label: 'Zadania', route: '/tasks' },
-            { label: 'Postać', route: '/character' },
+            { label: 'Home', route: '/', icon: 'home-outline' },
+            { label: 'Zadania', route: '/tasks', icon: 'checkmark-done-outline' },
+            { label: 'Postać', route: '/character', icon: 'person-outline' },
+            { label: 'Wyzwania', route: '/challenges', icon: 'trophy-outline' },
+            { label: 'Ustawienia', route: '/settings', icon: 'settings-outline' },
           ]}
           onSelect={handleSelect}
-          width={SIDE_WIDTH}
           translateX={translateX}
         />
 

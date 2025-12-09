@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components/native';
 import { Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface TaskItemProps {
   title: string;
   difficulty?: 'latwy' | 'sredni' | 'trudny';
+  description?: string;
   dueDate?: any;
   allowShake?: boolean;
   onPress?: () => void;
@@ -16,9 +18,16 @@ const difficultyLabels: Record<'latwy' | 'sredni' | 'trudny', string> = {
   trudny: 'Trudny',
 };
 
+const difficultyColors: Record<'latwy' | 'sredni' | 'trudny', string> = {
+  latwy: '#4caf50',
+  sredni: '#ff9800',
+  trudny: '#e53935',
+};
+
 export default function TaskItem({
   title,
   difficulty,
+  description,
   dueDate,
   allowShake,
   onPress,
@@ -46,22 +55,22 @@ export default function TaskItem({
         Animated.timing(shakeX, {
           toValue: 4,
           duration: 70,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(shakeX, {
           toValue: -4,
           duration: 70,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(shakeX, {
           toValue: 2,
           duration: 50,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(shakeX, {
           toValue: 0,
           duration: 50,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.delay(2200),
       ]).start(() => {
@@ -72,80 +81,112 @@ export default function TaskItem({
     loop();
   }, [isLate]);
 
-  const pulse = useRef(new Animated.Value(0)).current;
+  const getDifficultyColor = () => {
+    return difficulty ? difficultyColors[difficulty] : '#999';
+  };
 
-  useEffect(() => {
-    if (!isLate) return;
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: false,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: false,
-        }),
-      ]),
-    ).start();
-  }, [isLate]);
-
-  const borderColor = isLate
-    ? pulse.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['rgba(255,70,70,0.3)', 'rgba(255,0,0,0.9)'],
-      })
-    : '#fff';
+  const getDifficultyLabel = () => {
+    return difficulty ? difficultyLabels[difficulty] : '';
+  };
 
   return (
     <AnimatedContainer
       activeOpacity={0.8}
       onPress={onPress}
       style={{
-        transform: [{ translateX: isLate ? shakeX : 0 }],
-        borderColor,
-        borderWidth: isLate ? 2 : 0,
-        backgroundColor: isLate ? '#ffe8e8' : '#fff',
-        shadowColor: isLate ? '#ff0000' : '#000',
-        shadowOpacity: isLate ? 0.4 : 0.1,
-        shadowRadius: isLate ? 10 : 4,
+        transform: [{ translateX: shakeX }],
       }}
     >
-      <Title>{title}</Title>
+      <TaskHeader>
+        <TaskTitle numberOfLines={1}>{title}</TaskTitle>
+        {difficulty && (
+          <DifficultyBadge color={getDifficultyColor()}>
+            <DifficultyText>{getDifficultyLabel()}</DifficultyText>
+          </DifficultyBadge>
+        )}
+      </TaskHeader>
 
-      {difficulty && <Difficulty>Trudność: {difficultyLabels[difficulty]}</Difficulty>}
+      {description && <TaskDescription numberOfLines={2}>{description}</TaskDescription>}
 
-      {isLate && <LateInfo>Czas minął!</LateInfo>}
+      <TaskFooter>
+        <TaskDate isLate={isLate}>
+          <Ionicons name="calendar-outline" size={14} color={isLate ? '#e53935' : '#666'} />
+          <TaskDateText isLate={isLate}>
+            {d.toLocaleDateString('pl-PL', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })}
+          </TaskDateText>
+        </TaskDate>
+      </TaskFooter>
     </AnimatedContainer>
   );
 }
 
-// Style
-
-const AnimatedContainer = Animated.createAnimatedComponent(styled.TouchableOpacity`
+// style
+const Container = styled.TouchableOpacity`
+  background-color: white;
+  border-radius: 12px;
   padding: 16px;
   margin-bottom: 12px;
-  border-radius: 10px;
+  shadow-color: #000;
+  shadow-opacity: 0.1;
+  shadow-radius: 8px;
   elevation: 3;
-`);
-
-const Title = styled.Text`
-  font-size: 16px;
-  color: #333;
-  margin-bottom: 4px;
 `;
 
-const Difficulty = styled.Text`
+const AnimatedContainer = Animated.createAnimatedComponent(Container);
+
+const TaskHeader = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+`;
+
+const TaskTitle = styled.Text`
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+  margin-right: 8px;
+`;
+
+const DifficultyBadge = styled.View<{ color: string }>`
+  background-color: ${({ color }) => color}20;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid ${({ color }) => color};
+`;
+
+const DifficultyText = styled.Text`
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+`;
+
+const TaskDescription = styled.Text`
   font-size: 14px;
   color: #666;
+  margin-bottom: 12px;
+  line-height: 20px;
 `;
 
-const LateInfo = styled.Text`
-  margin-top: 6px;
+const TaskFooter = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const TaskDate = styled.View<{ isLate?: boolean }>`
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+`;
+
+const TaskDateText = styled.Text<{ isLate?: boolean }>`
   font-size: 12px;
-  color: #b30000;
-  font-weight: 700;
+  color: ${({ isLate }) => (isLate ? '#e53935' : '#666')};
+  font-weight: ${({ isLate }) => (isLate ? '700' : '400')};
 `;

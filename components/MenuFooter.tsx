@@ -1,4 +1,5 @@
 import styled from 'styled-components/native';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = {
   onLogin: () => void;
@@ -23,6 +24,7 @@ export function LogoutBtn({ onLogout }: { onLogout: () => void }) {
   return (
     <Footer>
       <LogOutlineBtn onPress={onLogout} style={{ shadowOffset: { width: 3, height: 3 } }}>
+        <Ionicons name="log-out-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
         <LgOutBtnText>Wyloguj</LgOutBtnText>
       </LogOutlineBtn>
     </Footer>
@@ -61,25 +63,18 @@ const BtnText = styled.Text`
 `;
 
 const LogOutlineBtn = styled.TouchableOpacity`
-  background-color: red;
-
-  border-style: solid;
-  border-radius: 16px;
-  border-width: 3px;
-  border-color: #000;
-
+  width: 100%;
+  flex-direction: row;
+  justify-content: center;
   align-items: center;
-  padding-vertical: 12px;
-
-  shadow-color: #000;
-  shadow-opacity: 0.2;
-  shadow-radius: 0px;
-  elevation: 10;
-  opacity: 0.8;
+  padding: 12px;
+  background-color: #ef4444;
+  border-radius: 10px;
+  margin-top: 10px;
 `;
 
 const LgOutBtnText = styled.Text`
-  color: #000;
-  font-weight: 700;
+  color: #fff;
   font-size: 16px;
+  font-weight: 700;
 `;

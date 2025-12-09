@@ -1,5 +1,12 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  addDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app, firestore } from '../services/firebase';
 import { User } from '@firebase/auth';
@@ -17,6 +24,7 @@ export interface Task {
 
 interface TaskContextValue {
   tasks: Task[];
+  loading: boolean;
   addTask: (t: Omit<Task, 'id' | 'status'>) => Promise<void>;
   updateTaskStatus: (id: string, status: Task['status']) => Promise<void>;
   completeTask: (taskId: string, difficulty: Task['difficulty']) => Promise<void>;
@@ -35,73 +43,99 @@ export function TaskProvider({
   user: User | null;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const loadTasks = async () => {
-    if (!user) return;
-
-    try {
-      const q = query(collection(firestore, 'users', user.uid, 'tasks'));
-      const querySnapshot = await getDocs(q);
-
-      const loadedTasks: Task[] = [];
-
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data() as any;
-
-        const rawDue = data.dueDate;
-        let dueDate: Date;
-
-        if (rawDue instanceof Date) {
-          dueDate = rawDue;
-        } else if (rawDue && typeof rawDue.toDate === 'function') {
-          dueDate = rawDue.toDate();
-        } else {
-          dueDate = new Date(rawDue);
-        }
-
-        const rawCreated = data.createdAt;
-        let createdAt: Date | undefined;
-        if (rawCreated instanceof Date) {
-          createdAt = rawCreated;
-        } else if (rawCreated && typeof rawCreated.toDate === 'function') {
-          createdAt = rawCreated.toDate();
-        } else if (rawCreated) {
-          createdAt = new Date(rawCreated);
-        }
-
-        loadedTasks.push({
-          ...(data as Omit<Task, 'id' | 'dueDate' | 'createdAt'>),
-          id: docSnap.id,
-          dueDate,
-          createdAt,
-        });
-      });
-
-      setTasks(loadedTasks);
-    } catch (e) {
-      console.error('Błąd w pobieraniu tasków z Firestore:', e);
+  useEffect(() => {
+    if (!user) {
+      setTasks([]);
+      setLoading(false);
+      return;
     }
-  };
+
+    setLoading(true);
+
+    const q = query(
+      collection(firestore, 'users', user.uid, 'tasks'),
+      orderBy('createdAt', 'desc'),
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const loadedTasks: Task[] = [];
+
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data() as any;
+
+          const rawDue = data.dueDate;
+          let dueDate: Date;
+
+          if (rawDue instanceof Date) {
+            dueDate = rawDue;
+          } else if (rawDue && typeof rawDue.toDate === 'function') {
+            dueDate = rawDue.toDate();
+          } else {
+            dueDate = new Date(rawDue);
+          }
+
+          const rawCreated = data.createdAt;
+          let createdAt: Date | undefined;
+          if (rawCreated instanceof Date) {
+            createdAt = rawCreated;
+          } else if (rawCreated && typeof rawCreated.toDate === 'function') {
+            createdAt = rawCreated.toDate();
+          } else if (rawCreated) {
+            createdAt = new Date(rawCreated);
+          }
+
+          const rawCompleted = data.completedAt;
+          let completedAt: Date | undefined;
+          if (rawCompleted instanceof Date) {
+            completedAt = rawCompleted;
+          } else if (rawCompleted && typeof rawCompleted.toDate === 'function') {
+            completedAt = rawCompleted.toDate();
+          } else if (rawCompleted) {
+            completedAt = new Date(rawCompleted);
+          }
+
+          loadedTasks.push({
+            ...(data as Omit<Task, 'id' | 'dueDate' | 'createdAt' | 'completedAt'>),
+            id: docSnap.id,
+            dueDate,
+            createdAt,
+            completedAt,
+          });
+        });
+
+        setTasks(loadedTasks);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Błąd w pobieraniu tasków z Firestore:', error);
+        setLoading(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   const addTask = async (t: Omit<Task, 'id' | 'status'>) => {
     if (!user) return;
 
     try {
-      const functions = getFunctions(app);
-      const createTaskFn = httpsCallable(functions, 'createTask');
+      const tasksRef = collection(firestore, 'users', user.uid, 'tasks');
 
-      const res = await createTaskFn({
+      await addDoc(tasksRef, {
         title: t.title,
         difficulty: t.difficulty,
         description: t.description,
-        dueDate: t.dueDate.toISOString(),
+        dueDate: t.dueDate,
+        status: 'inProgress',
+        createdAt: serverTimestamp(),
       });
-
-      console.log('Created task:', res.data);
-
-      await loadTasks();
     } catch (e) {
-      console.error('Błąd przy addTask (backend createTask):', e);
+      console.error('Błąd przy addTask:', e);
+      throw e;
     }
   };
 
@@ -116,12 +150,9 @@ export function TaskProvider({
         taskId: id,
         status: status,
       });
-
-      console.log('updateTaskStatus DONE:', id, status);
-
-      await loadTasks();
     } catch (e) {
       console.error('Błąd przy updateTaskStatus:', e);
+      throw e;
     }
   };
 
@@ -132,18 +163,10 @@ export function TaskProvider({
       const functions = getFunctions(app);
       const completeFn = httpsCallable(functions, 'completeTask');
 
-      console.log('completeTask() → backend call', {
-        taskId,
-        difficulty,
-      });
-
-      const response = await completeFn({ taskId, difficulty });
-
-      console.log('completeTask response:', response.data);
-
-      await loadTasks();
+      await completeFn({ taskId, difficulty });
     } catch (e) {
       console.error('Błąd przy completeTask:', e);
+      throw e;
     }
   };
 
@@ -151,6 +174,7 @@ export function TaskProvider({
     <TaskContext.Provider
       value={{
         tasks,
+        loading,
         addTask,
         updateTaskStatus,
         completeTask,

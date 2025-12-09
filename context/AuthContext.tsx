@@ -5,6 +5,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from 'firebase/auth';
 
 import { doc, setDoc } from 'firebase/firestore';
@@ -20,6 +23,7 @@ type AuthCtx = {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthCtx | undefined>(undefined);
@@ -68,8 +72,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setClearTrigger(true);
   };
 
+  const changePassword = async (oldPassword: string, newPassword: string) => {
+    const current = auth.currentUser;
+
+    if (!current || !current.email) {
+      throw new Error('Brak zalogowanego użytkownika.');
+    }
+
+    const cred = EmailAuthProvider.credential(current.email, oldPassword);
+    await reauthenticateWithCredential(current, cred);
+
+    await updatePassword(current, newPassword);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, initializing, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        initializing,
+        login,
+        register,
+        logout,
+        changePassword,
+      }}
+    >
       <UserProvider user={user}>
         <TaskProvider clearTrigger={clearTrigger} user={user}>
           {children}
