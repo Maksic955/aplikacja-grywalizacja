@@ -1,0 +1,42 @@
+{
+  // Formatowanie przy zapisie
+  "editor.formatOnSave": true,
+
+  // Używaj Prettiera jako głównego formatera
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // Wymuś używanie Prettiera dla JS/TS/TSX
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // ESLint – włącz diagnozy i naprawa błędów przy zapisie
+  "eslint.enable": true,
+  "eslint.run": "onSave",
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  "eslint.alwaysShowStatus": true,
+
+  // Konfliktowy formatter VSCode dla JSON – wymuszamy Prettiera
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // Wyciszenie błędów Prettiera jeśli coś nie gra — bez crasha edytora
+  "prettier.requireConfig": false,
+
+  // Ustawienia formatowania
+  "prettier.printWidth": 100,
+  "prettier.singleQuote": true,
+  "prettier.trailingComma": "all",
+  "prettier.semi": true,
+  "prettier.tabWidth": 2
+}

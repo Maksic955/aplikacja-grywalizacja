@@ -1,43 +1,42 @@
-import React from 'react';
 import styled from 'styled-components/native';
 
 interface ProgressBarProps {
   value: number;
   maxValue: number;
-  height?: number;
+  height: number;
   backgroundColor?: string;
   fillColor?: string;
+  radius?: number;
 }
 
-const Container = styled.View<{ height: number; backgroundColor: string }>`
+export default function ProgressBar({
+  value,
+  maxValue,
+  height,
+  backgroundColor = '#e0e0e0',
+  fillColor = '#76c7c0',
+  radius = 8,
+}: ProgressBarProps) {
+  const ratio = Math.min(Math.max(value / maxValue, 0), 1);
+
+  return (
+    <BarContainer height={height} backgroundColor={backgroundColor} radius={radius}>
+      <BarFill ratio={ratio} fillColor={fillColor} radius={radius} />
+    </BarContainer>
+  );
+}
+
+const BarContainer = styled.View<{ height: number; backgroundColor: string; radius: number }>`
   width: 100%;
-  height: ${({ height }: { height: number }) => height}px;
-  background-color: ${({ backgroundColor }: { backgroundColor: string }) => backgroundColor};
-  border-radius: ${({ height }: { height: number }) => height / 2}px;
+  height: ${({ height }) => height}px;
+  background-color: ${({ backgroundColor }) => backgroundColor};
+  border-radius: ${({ radius }) => radius}px;
   overflow: hidden;
 `;
 
-const Fill = styled.View<{ fillWidth: string; fillColor: string }>`
-  width: ${({ fillWidth }: { fillWidth: string }) => fillWidth};
+const BarFill = styled.View<{ ratio: number; fillColor: string; radius?: number }>`
+  width: ${({ ratio }) => ratio * 100}%;
   height: 100%;
-  background-color: ${({ fillColor }: { fillColor: string }) => fillColor};
+  background-color: ${({ fillColor }) => fillColor};
+  border-radius: ${({ radius }) => radius}px;
 `;
-
-const ProgressBar: React.FC<ProgressBarProps> = ({
-  value,
-  maxValue,
-  height = 6,
-  backgroundColor = '#E0E0E0',
-  fillColor = '#4CAF50',
-}) => {
-  const ratio = Math.min(Math.max(value / maxValue, 0), 1);
-  const fillWidth = `${ratio * 100}%`;
-
-  return (
-    <Container height={height} backgroundColor={backgroundColor}>
-      <Fill fillWidth={fillWidth} fillColor={fillColor} />
-    </Container>
-  );
-};
-
-export default ProgressBar;

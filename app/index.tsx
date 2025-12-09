@@ -1,204 +1,209 @@
-import React, { useState } from 'react';
-import { FlatList, Modal , ScrollView, TouchableWithoutFeedback} from 'react-native';
-import { useRouter } from 'expo-router';
+import { useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components/native';
 import { Ionicons } from '@expo/vector-icons';
-import TopBar from '../components/TopBar';
-import TaskItem from '../components/TaskItem';
-import { useTasks, Task } from '../context/TaskContext';
-import TaskDetailModal from '../components/TaskDetailModal';
+import { Animated } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useTasks, Task } from '@/context/TaskContext';
+import HomeTaskCard from '@/components/HomeTaskCard';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [menuVisible, setMenuVisible] = useState(false);
-  const { tasks } = useTasks();
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const { tasks, updateTaskStatus, completeTask } = useTasks();
 
-  const inProgress = tasks.filter(t => t.status === 'inProgress');
-  const done = tasks.filter(t => t.status === 'done');
-  const cancelled = tasks.filter(t => t.status === 'cancelled');
+  const normalizeDate = (d: any) => (d instanceof Date ? d : (d?.toDate?.() ?? new Date(d)));
 
-  interface TaskType {
-    id: string;
-    title: string;
-    difficulty?: 'Łatwy' | 'Średni' | 'Trudny';
-  }
+  const activeTasks = useMemo(
+    () => tasks.filter((t) => t.status === 'inProgress' || t.status === 'paused'),
+    [tasks],
+  );
 
+  const now = Date.now();
+
+  // wybór najpilniejszego zadania
+  const urgent: Task | null = useMemo(() => {
+    if (activeTasks.length === 0) return null;
+
+    const late = activeTasks.filter((t) => now > normalizeDate(t.dueDate).getTime());
+
+    if (late.length > 0) {
+      return late.reduce((a, b) => {
+        const da = normalizeDate(a.dueDate).getTime();
+        const db = normalizeDate(b.dueDate).getTime();
+        return da <= db ? a : b;
+      });
+    }
+
+    const sorted = [...activeTasks].sort((a, b) => {
+      const da = normalizeDate(a.dueDate).getTime();
+      const db = normalizeDate(b.dueDate).getTime();
+
+      if (da !== db) return da - db;
+
+      const ca = normalizeDate(a.createdAt).getTime();
+      const cb = normalizeDate(b.createdAt).getTime();
+      return ca - cb;
+    });
+
+    return sorted[0];
+  }, [activeTasks]);
+
+  const hasTasks = activeTasks.length > 0;
+
+  const isLate = urgent ? now > normalizeDate(urgent.dueDate).getTime() : false;
+
+  // animacje
+  const shakeX = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  // wstrząs (native)
+  useEffect(() => {
+    if (!isLate) return;
+
+    const runShake = () => {
+      Animated.sequence([
+        Animated.timing(shakeX, {
+          toValue: 6,
+          duration: 60,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: -6,
+          duration: 60,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 3,
+          duration: 50,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 0,
+          duration: 50,
+          useNativeDriver: true,
+        }),
+        Animated.delay(2000),
+      ]).start(() => {
+        if (isLate) runShake();
+      });
+    };
+
+    runShake();
+  }, [isLate]);
+
+  // pulsowanie (native)
+  useEffect(() => {
+    if (!isLate) return;
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 0.5,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, [isLate]);
 
   return (
     <Screen>
-      <TopBar
-        onMenuPress={() => setMenuVisible(true)}
-        avatarUri={''}
-        currentXP={0}
-        maxXP={0}
-        currentHP={0}
-        maxHP={0}
-      />
+      <Header>Bieżące zadania</Header>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 80}}>
-        <Section>
-          <SectionHeader>W toku</SectionHeader>
-          <FlatList
-          data={inProgress}
-          scrollEnabled={false}
-          keyExtractor={t => t.id}
-          renderItem={({ item }: {item: TaskType}) => (
-            <TaskItem
-              title={item.title}
-              difficulty={item.difficulty}
-              onPress={() => {
-                setSelectedTask({
-                  id: item.id,
-                  title: item.title,
-                  difficulty: item.difficulty ?? 'Łatwy',
-                  description: '',
-                  dueDate: new Date(),
-                  status: 'inProgress'
-                });
-                setModalVisible(true);
-              }}
+      {!urgent ? (
+        <EmptyWrap>
+          <EmptyText>Brak zadań w toku — dodaj nowe!</EmptyText>
+          <InlineAdd onPress={() => router.push('/add-task')}>
+            <Ionicons name="add" size={22} color="#fff" />
+          </InlineAdd>
+        </EmptyWrap>
+      ) : (
+        <Wrapper>
+          {isLate && <PulseOverlay pointerEvents="none" style={{ opacity: pulse }} />}
+
+          <AnimatedCard
+            style={{
+              transform: [{ translateX: shakeX }],
+            }}
+          >
+            <HomeTaskCard
+              task={urgent}
+              onPause={() => updateTaskStatus(urgent.id, 'paused')}
+              onDone={() => completeTask(urgent.id, urgent.difficulty)}
             />
-          )}
-          contentContainerStyle={{ padding: 16 }}
-          ListEmptyComponent={<EmptyText>Brak zadań – dodaj nowe!</EmptyText>}
-        />
-        </Section>
+          </AnimatedCard>
+        </Wrapper>
+      )}
 
-        <Section>
-          <SectionHeader>Wstrzymane</SectionHeader>
-          <FlatList
-            data={done}
-            scrollEnabled={false}
-            keyExtractor={t => t.id}
-            renderItem={({ item }: {item: TaskType}) => (
-              <TaskItem
-                title={item.title}
-                difficulty={item.difficulty}
-                onPress={() => {
-                  setSelectedTask({
-                    id: item.id,
-                    title: item.title,
-                    difficulty: item.difficulty ?? 'Łatwy',
-                    description: '',
-                    dueDate: new Date(),
-                    status: 'done'
-                  });
-                  setModalVisible(true);
-                }}
-              />
-            )}
-            contentContainerStyle={{ padding: 16 }}
-            ListEmptyComponent={<EmptyText>Brak wstrzymanych zadań</EmptyText>}
-          />
-        </Section>
-
-        <Section>
-          <SectionHeader>Wykonane</SectionHeader>
-          <FlatList
-            data={cancelled}
-            scrollEnabled={false}
-            keyExtractor={t => t.id}
-            renderItem={({ item }: {item: TaskType}) => (
-              <TaskItem
-                title={item.title}
-                difficulty={item.difficulty}
-                onPress={() => {
-                  setSelectedTask({
-                    id: item.id,
-                    title: item.title,
-                    difficulty: item.difficulty ?? 'Łatwy',
-                    description: '',
-                    dueDate: new Date(),
-                    status: 'cancelled'
-                  });
-                  setModalVisible(true);
-                }}
-              />
-            )}
-            contentContainerStyle={{ padding: 16 }}
-            ListEmptyComponent={<EmptyText>Brak anulowanych zadań</EmptyText>}
-          />
-        </Section>
-      </ScrollView>
-
-       <Modal visible={!!selectedTask} transparent animationType='fade'>
-          <TouchableWithoutFeedback onPress={() => setSelectedTask(null)}>
-            <Overlay/>
-          </TouchableWithoutFeedback>
-
-          {selectedTask && (
-            <TaskDetailModal
-              visible={modalVisible}
-              taskId={selectedTask.id}              
-              onClose={() => setSelectedTask(null)}
-            />
-          )}  
-       </Modal>
-
-      <FloatingButton onPress={() => router.push('/add-task')}>
-        <Ionicons name="add" size={28} color="#fff" />
-      </FloatingButton>
-
-      <Modal visible={menuVisible} transparent animationType="fade">
-        <MenuOverlay>
-          <MenuContainer>
-            <CloseButton onPress={() => setMenuVisible(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </CloseButton>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Home</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Zadania</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Statystyki</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Wyzwania</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Kontakt</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Faq</MenuText>
-            </MenuItem>
-          </MenuContainer>
-        </MenuOverlay>
-      </Modal>
+      {hasTasks && (
+        <FloatingButton onPress={() => router.push('/add-task')}>
+          <Ionicons name="add" size={28} color="#fff" />
+        </FloatingButton>
+      )}
     </Screen>
   );
 }
+
+// STYLES
+
+const Wrapper = styled.View`
+  position: relative;
+  margin: 0;
+  padding: 0;
+`;
+
+const PulseOverlay = styled(Animated.View)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 18px;
+  background-color: rgba(255, 0, 0, 0.45);
+  z-index: 1;
+`;
+
+const AnimatedCard = styled(Animated.View)`
+  z-index: 2;
+`;
 
 const Screen = styled.SafeAreaView`
   flex: 1;
 `;
 
-const Section = styled.View`margin-bottom: 20px;`;
-
-const SectionHeader = styled.Text`
+const Header = styled.Text`
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 700;
+  color: black;
   margin: 0 16px 8px;
 `;
 
-const Overlay = styled.View`
-  flex: 1;
-  background-color: rgba(0,0,0,0.4);
+const EmptyWrap = styled.View`
+  align-items: center;
+  margin-top: 32px;
+  gap: 12px;
+  padding: 0 16px;
 `;
 
 const EmptyText = styled.Text`
   text-align: center;
-  color: #888;
-  margin: 16px 0;
+  color: #9aa8b2;
+`;
+
+const InlineAdd = styled.TouchableOpacity`
+  padding: 6px 10px;
+  border-radius: 16px;
+  background-color: #2875d4;
 `;
 
 const FloatingButton = styled.TouchableOpacity`
   position: absolute;
   right: 24px;
-  bottom: 56px;
+  bottom: 120px;
   width: 56px;
   height: 56px;
   border-radius: 28px;
@@ -206,39 +211,4 @@ const FloatingButton = styled.TouchableOpacity`
   align-items: center;
   justify-content: center;
   elevation: 8;
-`;
-
-// ——— Menu modal styling ———
-
-const MenuOverlay = styled.View`
-  flex: 1;
-  justify-content: center;
-  margin: 50px;
-`;
-
-const MenuContainer = styled.View`
-  flex: 1;
-  width: 100%;
-  padding: 24px;
-  background-color: rgba(255,255,255,0.9);
-  border-radius: 12px;
-  justify-content: center;
-  align-items: center;
-`;
-
-const CloseButton = styled.TouchableOpacity`
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 8px;
-  z-index: 1;
-`;
-
-const MenuItem = styled.TouchableOpacity`
-  padding-vertical: 12px;
-`;
-
-const MenuText = styled.Text`
-  font-size: 24px;
-  color: #333;
 `;
