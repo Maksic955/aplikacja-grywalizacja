@@ -1,20 +1,36 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Dimensions, Pressable, StyleSheet } from 'react-native';
 import styled from 'styled-components/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import MenuFooter, { LogoutBtn } from './MenuFooter';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 
+import type { SharedValue } from 'react-native-reanimated';
 import Animated, {
-  SharedValue,
+  useSharedValue,
   useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
   interpolate,
   Extrapolate,
 } from 'react-native-reanimated';
 
-type RoutePath = '/' | '/tasks' | '/add-task' | '/character' | '/login' | '/register';
-export type MenuItem = { label: string; route: RoutePath };
+import { doc, onSnapshot } from 'firebase/firestore';
+import { firestore } from '@/services/firebase';
+
+type RoutePath =
+  | '/'
+  | '/tasks'
+  | '/add-task'
+  | '/character'
+  | '/login'
+  | '/register'
+  | '/settings'
+  | '/challenges';
+
+export type MenuItem = { label: string; route: RoutePath; icon: string };
 
 interface Props {
   visible: boolean;
@@ -25,9 +41,9 @@ interface Props {
   translateX: SharedValue<number>;
 }
 
-const RAW_WIDTH = Math.min(320, Dimensions.get('window').width * 0.8);
-
-type ActiveProp = { $active?: boolean };
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const MENU_WIDTH = Math.min(320, SCREEN_WIDTH * 0.85);
+const SWIPE_THRESHOLD = MENU_WIDTH * 0.3;
 
 const normalize = (p: string) => p.replace(/\/+$/, '') || '/';
 const isActiveRoute = (pathname: string, route: RoutePath) => {
@@ -37,27 +53,79 @@ const isActiveRoute = (pathname: string, route: RoutePath) => {
   return a === b || a.startsWith(b + '/');
 };
 
-export default function SideMenu({
-  visible,
-  onClose,
-  items,
-  onSelect,
-  width = RAW_WIDTH,
-  translateX,
-}: Props) {
+export default function SideMenu({ visible, onClose, items, onSelect, translateX }: Props) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [nickname, setNickname] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setNickname(null);
+      setAvatarUrl(null);
+      return;
+    }
+
+    const ref = doc(firestore, 'users', user.uid);
+    const unsub = onSnapshot(ref, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() || {};
+      setNickname(data.nickname ?? null);
+      setAvatarUrl(data.avatarUrl ?? null);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+    if (visible) {
+      translateX.value = withSpring(0, {
+        damping: 20,
+        stiffness: 120,
+      });
+    } else {
+      translateX.value = withTiming(-MENU_WIDTH, {
+        duration: 250,
+      });
+    }
+  }, [visible]);
+
+  const pan = Gesture.Pan()
+    .onUpdate((e) => {
+      if (e.translationX < 0) {
+        translateX.value = Math.max(-MENU_WIDTH, e.translationX);
+      }
+    })
+    .onEnd((e) => {
+      const shouldClose = e.translationX < -SWIPE_THRESHOLD || e.velocityX < -500;
+
+      if (shouldClose) {
+        translateX.value = withTiming(-MENU_WIDTH, { duration: 200 });
+        runOnJS(onClose)();
+      } else {
+        translateX.value = withSpring(0, {
+          damping: 20,
+          stiffness: 120,
+        });
+      }
+    });
 
   const slideStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
 
   const backdropStyle = useAnimatedStyle(() => {
-    const progress = interpolate(translateX.value, [-width, 0], [0, 1], Extrapolate.CLAMP);
+    const progress = interpolate(translateX.value, [-MENU_WIDTH, 0], [0, 1], Extrapolate.CLAMP);
     return {
-      backgroundColor: `rgba(0,0,0,${0.4 * progress})`,
+      opacity: progress * 0.5,
+      pointerEvents: visible ? 'auto' : 'none',
     };
   });
+
+  const handleLogout = () => {
+    logout();
+    onClose();
+  };
 
   return (
     <Animated.View
@@ -65,136 +133,246 @@ export default function SideMenu({
       style={[StyleSheet.absoluteFillObject, { zIndex: 1000 }]}
     >
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-        <Animated.View style={[{ flex: 1 }, backdropStyle]} />
+        <Animated.View style={[{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }, backdropStyle]} />
       </Pressable>
 
-      <AnimatedContainer
-        style={[
-          {
-            width,
-          },
-          slideStyle,
-        ]}
-      >
-        <CloseButton onPress={onClose}>
-          <Ionicons name="close" size={24} color="#333" />
-        </CloseButton>
+      <GestureDetector gesture={pan}>
+        <AnimatedMenuCard style={slideStyle}>
+          <CloseButton onPress={onClose}>
+            <Ionicons name="close-circle" size={32} color="#2875d4" />
+          </CloseButton>
 
-        {items.map((i) => {
-          const active = isActiveRoute(pathname, i.route);
-          return (
-            <MenuItemBtn
-              key={i.route}
-              $active={active}
-              onPress={() => {
-                onSelect(i.route);
-                onClose();
-              }}
-            >
-              <MenuText $active={active}>{i.label}</MenuText>
-            </MenuItemBtn>
-          );
-        })}
+          <MenuItemsContainer>
+            {items.map((item) => {
+              const active = isActiveRoute(pathname, item.route);
+              return (
+                <MenuItem
+                  key={item.route}
+                  active={active}
+                  onPress={() => {
+                    onSelect(item.route);
+                    onClose();
+                  }}
+                >
+                  <MenuIconWrapper active={active}>
+                    <Ionicons
+                      name={item.icon as any}
+                      size={24}
+                      color={active ? '#fff' : '#2875d4'}
+                    />
+                  </MenuIconWrapper>
+                  <MenuText active={active}>{item.label}</MenuText>
+                </MenuItem>
+              );
+            })}
+          </MenuItemsContainer>
 
-        {user ? (
-          <UserSection>
-            <EmailWrapper>
-              <EmailText>Zalogowano jako:</EmailText>
-              <EmailValue>{user.email}</EmailValue>
-            </EmailWrapper>
+          {user ? (
+            <UserSection>
+              <UserCard>
+                <AvatarWrapper>
+                  {avatarUrl ? (
+                    <AvatarImage source={{ uri: avatarUrl }} />
+                  ) : (
+                    <AvatarPlaceholder>
+                      <Ionicons name="person" size={32} color="#2875d4" />
+                    </AvatarPlaceholder>
+                  )}
+                </AvatarWrapper>
 
-            <LogoutWrapper>
-              <LogoutBtn
-                onLogout={() => {
-                  logout();
+                <UserInfo>
+                  <NicknameText numberOfLines={1}>{nickname || 'Brak nicku'}</NicknameText>
+                  <EmailText numberOfLines={1}>{user.email}</EmailText>
+                </UserInfo>
+              </UserCard>
+
+              <LogoutButton onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={20} color="#fff" />
+                <LogoutText>Wyloguj się</LogoutText>
+              </LogoutButton>
+            </UserSection>
+          ) : (
+            <GuestSection>
+              <GuestButton
+                onPress={() => {
+                  onSelect('/login');
                   onClose();
                 }}
-              />
-            </LogoutWrapper>
-          </UserSection>
-        ) : (
-          <MenuFooter
-            onLogin={() => {
-              onSelect('/login');
-              onClose();
-            }}
-            onRegister={() => {
-              onSelect('/register');
-              onClose();
-            }}
-          />
-        )}
-      </AnimatedContainer>
+              >
+                <Ionicons name="log-in-outline" size={20} color="#fff" />
+                <GuestButtonText>Zaloguj się</GuestButtonText>
+              </GuestButton>
+
+              <GuestButton
+                secondary
+                onPress={() => {
+                  onSelect('/register');
+                  onClose();
+                }}
+              >
+                <Ionicons name="person-add-outline" size={20} color="#2875d4" />
+                <GuestButtonTextSecondary>Zarejestruj się</GuestButtonTextSecondary>
+              </GuestButton>
+            </GuestSection>
+          )}
+        </AnimatedMenuCard>
+      </GestureDetector>
     </Animated.View>
   );
 }
 
-// styles
-
-const Panel = styled.View`
+// style
+const MenuCard = styled.View`
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
-  padding: 24px;
-  padding-top: 48px;
-  background-color: rgba(255, 255, 255, 0.98);
-  border-top-right-radius: 16px;
-  border-bottom-right-radius: 16px;
-  justify-content: flex-start;
+  width: ${MENU_WIDTH}px;
+  background-color: white;
+  padding: 16px;
+  padding-top: 60px;
+  padding-bottom: 55px;
   shadow-color: #000;
-  shadow-opacity: 0.2;
-  shadow-radius: 12px;
-  elevation: 12;
+  shadow-opacity: 0.3;
+  shadow-radius: 20px;
+  elevation: 16;
 `;
 
-const AnimatedContainer = Animated.createAnimatedComponent(Panel);
+const AnimatedMenuCard = Animated.createAnimatedComponent(MenuCard);
 
 const CloseButton = styled.TouchableOpacity`
   position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 8px;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
 `;
 
-const MenuItemBtn = styled.TouchableOpacity<ActiveProp>`
-  padding-vertical: 14px;
-  border-bottom-width: 3px;
-  align-items: flex-start;
+const MenuItemsContainer = styled.View`
+  flex: 1;
+  gap: 8px;
 `;
 
-const MenuText = styled.Text<ActiveProp>`
-  font-size: 22px;
-  color: ${({ $active }: ActiveProp) => ($active ? '#2875d4' : '#333')};
-  font-weight: ${({ $active }: ActiveProp) => ($active ? '700' : '400')};
+const MenuItem = styled.TouchableOpacity<{ active?: boolean }>`
+  flex-direction: row;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background-color: ${({ active }) => (active ? '#e8f4fd' : 'transparent')};
+  gap: 16px;
+`;
+
+const MenuIconWrapper = styled.View<{ active?: boolean }>`
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background-color: ${({ active }) => (active ? '#2875d4' : '#e8f4fd')};
+  justify-content: center;
+  align-items: center;
+`;
+
+const MenuText = styled.Text<{ active?: boolean }>`
+  font-size: 18px;
+  font-weight: ${({ active }) => (active ? '700' : '500')};
+  color: ${({ active }) => (active ? '#2875d4' : '#333')};
 `;
 
 const UserSection = styled.View`
+  padding-top: 16px;
+  border-top-width: 2px;
+  border-top-color: #f0f0f0;
+  gap: 12px;
+`;
+
+const UserCard = styled.View`
+  flex-direction: row;
+  align-items: center;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  gap: 12px;
+`;
+
+const AvatarWrapper = styled.View`
+  width: 50px;
+  height: 50px;
+`;
+
+const AvatarImage = styled.Image`
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  border-width: 2px;
+  border-color: #2875d4;
+`;
+
+const AvatarPlaceholder = styled.View`
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  background-color: #e8f4fd;
+  justify-content: center;
+  align-items: center;
+`;
+
+const UserInfo = styled.View`
   flex: 1;
-  justify-content: flex-end;
-  align-items: center;
-  padding-bottom: 28px;
 `;
 
-const EmailWrapper = styled.View`
-  margin-bottom: 120px;
-  padding-horizontal: 4px;
-  align-items: center;
-`;
-
-const LogoutWrapper = styled.View`
-  margin-bottom: 8px;
-  width: 100%;
-  align-items: center;
+const NicknameText = styled.Text`
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 2px;
 `;
 
 const EmailText = styled.Text`
-  color: #000;
-  font-size: 14px;
+  font-size: 12px;
+  color: #666;
 `;
 
-const EmailValue = styled.Text`
-  color: #000;
+const LogoutButton = styled.TouchableOpacity`
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  background-color: #e53935;
+  border-radius: 12px;
+  gap: 8px;
+`;
+
+const LogoutText = styled.Text`
   font-size: 16px;
   font-weight: 600;
+  color: white;
+`;
+
+const GuestSection = styled.View`
+  padding-top: 16px;
+  border-top-width: 2px;
+  border-top-color: #f0f0f0;
+  gap: 12px;
+`;
+
+const GuestButton = styled.TouchableOpacity<{ secondary?: boolean }>`
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  background-color: ${({ secondary }) => (secondary ? 'transparent' : '#2875d4')};
+  border-radius: 12px;
+  border-width: ${({ secondary }) => (secondary ? '2px' : '0')};
+  border-color: ${({ secondary }) => (secondary ? '#2875d4' : 'transparent')};
+  gap: 8px;
+`;
+
+const GuestButtonText = styled.Text`
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+`;
+
+const GuestButtonTextSecondary = styled.Text`
+  font-size: 16px;
+  font-weight: 600;
+  color: #2875d4;
 `;

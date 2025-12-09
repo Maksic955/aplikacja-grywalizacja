@@ -6,14 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RoutePath = '/' | '/tasks' | '/character' | '/add-task';
 
-const BAR_HEIGHT = 64;
-
-const TABS: { label: string; route: RoutePath; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: 'Home',     route: '/',         icon: 'home' },
-  { label: 'Zadania',  route: '/tasks',    icon: 'list' },
-  { label: 'Postać',   route: '/character',icon: 'person' },
-];
-
 const normalize = (p: string) => p.replace(/\/+$/, '') || '/';
 const isActive = (pathname: string, route: RoutePath) => {
   const a = normalize(pathname || '/');
@@ -27,67 +19,82 @@ export default function NavBar() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const homeActive = isActive(pathname, '/');
+  const tasksActive = isActive(pathname, '/tasks');
+  const characterActive = isActive(pathname, '/character');
+
   return (
-    <Wrap
-      style={{
-        paddingBottom: insets.bottom,
-        height: BAR_HEIGHT + insets.bottom,
-      }}
-      accessibilityRole="tablist"
-    >
-      {TABS.map((t) => {
-        const active = isActive(pathname, t.route);
-        return (
-          <TabButton
-            key={t.route}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            onPress={() => router.replace(t.route as any)}
-          >
-            <Ionicons
-              name={t.icon}
-              size={22}
-              color={active ? '#2875d4' : '#c9d3dc'}
-            />
-            <TabLabel $active={active}>{t.label}</TabLabel>
-          </TabButton>
-        );
-      })}
+    <Wrap style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
+      <NavButton onPress={() => router.replace('/tasks')} activeOpacity={0.7}>
+        <IconWrapper active={tasksActive}>
+          <Ionicons
+            name={tasksActive ? 'checkmark-done' : 'checkmark-done-outline'}
+            size={22}
+            color={tasksActive ? '#15478a' : '#fff'}
+          />
+        </IconWrapper>
+        <ButtonLabel active={tasksActive}>Zadania</ButtonLabel>
+      </NavButton>
+
+      <NavButton onPress={() => router.replace('/')} activeOpacity={0.7}>
+        <IconWrapper active={homeActive}>
+          <Ionicons
+            name={homeActive ? 'home' : 'home-outline'}
+            size={24}
+            color={homeActive ? '#15478a' : '#fff'}
+          />
+        </IconWrapper>
+        <ButtonLabel active={homeActive}>Home</ButtonLabel>
+      </NavButton>
+
+      <NavButton onPress={() => router.replace('/character')} activeOpacity={0.7}>
+        <IconWrapper active={characterActive}>
+          <Ionicons
+            name={characterActive ? 'person' : 'person-outline'}
+            size={22}
+            color={characterActive ? '#15478a' : '#fff'}
+          />
+        </IconWrapper>
+        <ButtonLabel active={characterActive}>Postać</ButtonLabel>
+      </NavButton>
     </Wrap>
   );
 }
 
-// Style
+// style
 const Wrap = styled.View`
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
   flex-direction: row;
   align-items: center;
   justify-content: space-around;
-
-  background-color: #223142; /* lekko ciemniej niż tło (#2f3a4a) */
-  border-top-width: 1px;
-  border-top-color: rgba(255, 255, 255, 0.06);
-
+  background-color: #15478a;
+  border-radius: 20px;
+  padding: 8px 16px;
   shadow-color: #000;
-  shadow-opacity: 0.15;
-  shadow-radius: 10px;
+  shadow-opacity: 0.25;
+  shadow-radius: 16px;
   elevation: 12;
 `;
 
-const TabButton = styled.TouchableOpacity`
-  flex: 1;
-  height: ${BAR_HEIGHT}px;
+const NavButton = styled.TouchableOpacity`
   align-items: center;
-  justify-content: center;
   gap: 4px;
 `;
 
-const TabLabel = styled.Text`
+const IconWrapper = styled.View<{ active: boolean }>`
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background-color: ${({ active }) => (active ? '#e8f4fd' : ' #15478a')};
+  align-items: center;
+  justify-content: center;
+`;
+
+const ButtonLabel = styled.Text<{ active: boolean }>`
   font-size: 11px;
-  font-weight: ${({ $active }: { $active?: boolean }) => ($active ? '700' : '500')};
-  color: ${({ $active }: { $active?: boolean }) => ($active ? '#2875d4' : '#c9d3dc')};
+  font-weight: ${({ active }) => (active ? '700' : '500')};
+  color: ${({ active }) => (active ? '#fff' : '#a0c8e8')};
 `;

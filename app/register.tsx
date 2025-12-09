@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { Alert, Pressable } from 'react-native';
+import { Alert, TouchableOpacity } from 'react-native';
 import styled from 'styled-components/native';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/services/firebase';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -14,20 +15,85 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeat, setShowRepeat] = useState(false);
+
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [repeatError, setRepeatError] = useState('');
+
+  const [hasMinLength, setHasMinLength] = useState(false);
+  const [hasNumber, setHasNumber] = useState(false);
+  const [hasSpecialChar, setHasSpecialChar] = useState(false);
 
   useEffect(() => {
     if (user) router.replace('/');
   }, [user]);
 
+  const validateEmail = (text: string) => {
+    setEmail(text);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!text) {
+      setEmailError('');
+    } else if (!emailRegex.test(text)) {
+      setEmailError('Nieprawidłowy format e-mail');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  const validatePassword = (text: string) => {
+    setPassword(text);
+
+    setHasMinLength(text.length >= 4);
+    setHasNumber(/\d/.test(text));
+    setHasSpecialChar(/[!@#$%^&*(),.?":{}|<>]/.test(text));
+
+    if (!text) {
+      setPasswordError('');
+    } else if (text.length < 4) {
+      setPasswordError('Hasło musi mieć minimum 4 znaki');
+    } else if (!/\d/.test(text)) {
+      setPasswordError('Hasło musi zawierać cyfrę');
+    } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(text)) {
+      setPasswordError('Hasło musi zawierać znak specjalny');
+    } else {
+      setPasswordError('');
+    }
+
+    if (repeat && text !== repeat) {
+      setRepeatError('Hasła się różnią');
+    } else if (repeat) {
+      setRepeatError('');
+    }
+  };
+
+  const validateRepeat = (text: string) => {
+    setRepeat(text);
+    if (!text) {
+      setRepeatError('');
+    } else if (text !== password) {
+      setRepeatError('Hasła się różnią');
+    } else {
+      setRepeatError('');
+    }
+  };
+
   const onSubmit = async () => {
-    if (!email.trim()) return Alert.alert('Błąd', 'Podaj e-mail.');
-    if (password.length < 6)
-      return Alert.alert('Błąd', 'Hasło musi zawierać co najmniej 6 znaków.');
-    if (password !== repeat) return Alert.alert('Błąd', 'Hasła się różnią.');
+    if (!email || !password || !repeat) {
+      Alert.alert('Błąd', 'Wypełnij wszystkie pola');
+      return;
+    }
+
+    if (emailError || passwordError || repeatError) {
+      Alert.alert('Błąd', 'Popraw błędy w formularzu');
+      return;
+    }
 
     try {
       const fn = auth.signUp ?? auth.register ?? auth.login;
       await fn(email.trim(), password);
+
       const sendWelcomeEmail = httpsCallable(functions, 'sendWelcomeEmail');
       sendWelcomeEmail({ email: email.trim() })
         .then(() => console.log('Welcome email sent'))
@@ -42,73 +108,273 @@ export default function RegisterScreen() {
 
   return (
     <Screen>
-      <Title>Utwórz konto</Title>
+      <ScrollContainer contentContainerStyle={{ paddingBottom: 120 }}>
+        <ContentCard>
+          <Header>
+            <BackButton onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color="#2875d4" />
+            </BackButton>
+            <Title>Utwórz konto</Title>
+            <Placeholder />
+          </Header>
 
-      <Input
-        placeholder="E-mail"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail}
-      />
+          <FormSection>
+            <InputWrapper>
+              <Label>E-mail</Label>
+              <InputContainer hasError={!!emailError}>
+                <Ionicons name="mail-outline" size={20} color={emailError ? '#e53935' : '#666'} />
+                <Input
+                  placeholder="twoj@email.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={validateEmail}
+                  hasError={!!emailError}
+                />
+                {email && !emailError && (
+                  <Ionicons name="checkmark-circle" size={20} color="#4caf50" />
+                )}
+              </InputContainer>
+              {emailError && <ErrorText>{emailError}</ErrorText>}
+            </InputWrapper>
 
-      <Input placeholder="Hasło" secureTextEntry value={password} onChangeText={setPassword} />
+            <InputWrapper>
+              <Label>Hasło</Label>
+              <InputContainer hasError={!!passwordError}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={passwordError ? '#e53935' : '#666'}
+                />
+                <Input
+                  placeholder="Utwórz bezpieczne hasło"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={validatePassword}
+                  hasError={!!passwordError}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </InputContainer>
 
-      <Input placeholder="Powtórz hasło" secureTextEntry value={repeat} onChangeText={setRepeat} />
+              {password && (
+                <RequirementsBox>
+                  <Requirement met={hasMinLength}>
+                    <Ionicons
+                      name={hasMinLength ? 'checkmark-circle' : 'close-circle'}
+                      size={16}
+                      color={hasMinLength ? '#4caf50' : '#999'}
+                    />
+                    <RequirementText met={hasMinLength}>Minimum 4 znaki</RequirementText>
+                  </Requirement>
+                  <Requirement met={hasNumber}>
+                    <Ionicons
+                      name={hasNumber ? 'checkmark-circle' : 'close-circle'}
+                      size={16}
+                      color={hasNumber ? '#4caf50' : '#999'}
+                    />
+                    <RequirementText met={hasNumber}>Minimum jedna cyfra</RequirementText>
+                  </Requirement>
+                  <Requirement met={hasSpecialChar}>
+                    <Ionicons
+                      name={hasSpecialChar ? 'checkmark-circle' : 'close-circle'}
+                      size={16}
+                      color={hasSpecialChar ? '#4caf50' : '#999'}
+                    />
+                    <RequirementText met={hasSpecialChar}>
+                      Minimum jeden znak specjalny
+                    </RequirementText>
+                  </Requirement>
+                </RequirementsBox>
+              )}
+            </InputWrapper>
 
-      <PrimaryButton onPress={onSubmit}>
-        <BtnText>Zarejestruj się</BtnText>
-      </PrimaryButton>
+            <InputWrapper>
+              <Label>Powtórz hasło</Label>
+              <InputContainer hasError={!!repeatError}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={repeatError ? '#e53935' : '#666'}
+                />
+                <Input
+                  placeholder="Wpisz hasło ponownie"
+                  secureTextEntry={!showRepeat}
+                  value={repeat}
+                  onChangeText={validateRepeat}
+                  hasError={!!repeatError}
+                />
+                <TouchableOpacity onPress={() => setShowRepeat(!showRepeat)}>
+                  <Ionicons
+                    name={showRepeat ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </InputContainer>
+              {repeatError && <ErrorText>{repeatError}</ErrorText>}
+              {repeat && !repeatError && <SuccessText>✓ Hasła są zgodne</SuccessText>}
+            </InputWrapper>
 
-      <SmallRow>
-        <SmallText>Masz już konto? </SmallText>
-        {/* Naprawić przekierowanie w linku */}
-        <Pressable onPress={() => router.push('/login')}>
-          <SmallText>Zaloguj się</SmallText>
-        </Pressable>
-      </SmallRow>
+            <SubmitButton
+              onPress={onSubmit}
+              disabled={
+                !email || !password || !repeat || !!emailError || !!passwordError || !!repeatError
+              }
+            >
+              <ButtonText>Zarejestruj się</ButtonText>
+            </SubmitButton>
+          </FormSection>
+
+          <FooterRow>
+            <FooterText>Masz już konto? </FooterText>
+            <FooterLink onPress={() => router.push('/login')}>
+              <FooterLinkText>Zaloguj się</FooterLinkText>
+            </FooterLink>
+          </FooterRow>
+        </ContentCard>
+      </ScrollContainer>
     </Screen>
   );
 }
 
+// style
 const Screen = styled.SafeAreaView`
   flex: 1;
-  padding: 16px;
-  gap: 12px;
-  background-color: #2f3a4a;
+  background-color: #f5f5d5;
+`;
+
+const ScrollContainer = styled.ScrollView`
+  flex: 1;
+  padding: 24px;
+`;
+
+const ContentCard = styled.View`
+  background-color: white;
+  border-radius: 24px;
+  padding: 24px;
+  shadow-color: #000;
+  shadow-opacity: 0.15;
+  shadow-radius: 20px;
+  elevation: 8;
+`;
+
+const Header = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+`;
+
+const BackButton = styled.TouchableOpacity`
+  padding: 4px;
 `;
 
 const Title = styled.Text`
   font-size: 24px;
   font-weight: 700;
-  margin-bottom: 8px;
+  color: #333;
 `;
 
-const Input = styled.TextInput`
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 12px;
+const Placeholder = styled.View`
+  width: 32px;
 `;
 
-const PrimaryButton = styled.TouchableOpacity`
-  background-color: #2875d4;
-  padding: 12px;
-  border-radius: 8px;
-  align-items: center;
-  margin-top: 4px;
+const FormSection = styled.View`
+  gap: 20px;
+  margin-bottom: 24px;
 `;
 
-const BtnText = styled.Text`
-  color: #fff;
-  font-weight: 700;
+const InputWrapper = styled.View`
+  gap: 8px;
 `;
 
-const SmallRow = styled.View`
+const Label = styled.Text`
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+`;
+
+const InputContainer = styled.View<{ hasError?: boolean }>`
   flex-direction: row;
+  align-items: center;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  border: 2px solid ${({ hasError }) => (hasError ? '#e53935' : '#e0e0e0')};
+  padding: 12px 16px;
+  gap: 12px;
+`;
+
+const Input = styled.TextInput<{ hasError?: boolean }>`
+  flex: 1;
+  font-size: 16px;
+  color: #333;
+`;
+
+const ErrorText = styled.Text`
+  font-size: 12px;
+  color: #e53935;
+  margin-left: 4px;
+`;
+
+const SuccessText = styled.Text`
+  font-size: 12px;
+  color: #4caf50;
+  margin-left: 4px;
+`;
+
+const RequirementsBox = styled.View`
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  gap: 8px;
+`;
+
+const Requirement = styled.View<{ met?: boolean }>`
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+`;
+
+const RequirementText = styled.Text<{ met?: boolean }>`
+  font-size: 12px;
+  color: ${({ met }) => (met ? '#4caf50' : '#999')};
+`;
+
+const SubmitButton = styled.TouchableOpacity<{ disabled?: boolean }>`
+  background-color: ${({ disabled }) => (disabled ? '#ccc' : '#2875d4')};
+  padding: 16px;
+  border-radius: 12px;
+  align-items: center;
   margin-top: 8px;
 `;
 
-const SmallText = styled.Text`
+const ButtonText = styled.Text`
+  color: white;
   font-size: 16px;
-  color: #000;
+  font-weight: 700;
+`;
+
+const FooterRow = styled.View`
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+`;
+
+const FooterText = styled.Text`
+  font-size: 14px;
+  color: #666;
+`;
+
+const FooterLink = styled.TouchableOpacity``;
+
+const FooterLinkText = styled.Text`
+  font-size: 14px;
+  color: #2875d4;
+  font-weight: 700;
 `;

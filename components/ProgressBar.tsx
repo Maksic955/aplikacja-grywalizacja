@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import styled from 'styled-components/native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 interface ProgressBarProps {
   value: number;
@@ -19,13 +21,28 @@ export default function ProgressBar({
 }: ProgressBarProps) {
   const ratio = Math.min(Math.max(value / maxValue, 0), 1);
 
+  const animatedRatio = useSharedValue(ratio);
+
+  useEffect(() => {
+    animatedRatio.value = withSpring(ratio, {
+      damping: 30,
+      stiffness: 60,
+      mass: 0.5,
+    });
+  }, [ratio]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${animatedRatio.value * 100}%`,
+  }));
+
   return (
     <BarContainer height={height} backgroundColor={backgroundColor} radius={radius}>
-      <BarFill ratio={ratio} fillColor={fillColor} radius={radius} />
+      <AnimatedBarFill style={animatedStyle} fillColor={fillColor} radius={radius} />
     </BarContainer>
   );
 }
 
+// style
 const BarContainer = styled.View<{ height: number; backgroundColor: string; radius: number }>`
   width: 100%;
   height: ${({ height }) => height}px;
@@ -34,9 +51,10 @@ const BarContainer = styled.View<{ height: number; backgroundColor: string; radi
   overflow: hidden;
 `;
 
-const BarFill = styled.View<{ ratio: number; fillColor: string; radius?: number }>`
-  width: ${({ ratio }) => ratio * 100}%;
+const BarFill = styled.View<{ fillColor: string; radius?: number }>`
   height: 100%;
   background-color: ${({ fillColor }) => fillColor};
   border-radius: ${({ radius }) => radius}px;
 `;
+
+const AnimatedBarFill = Animated.createAnimatedComponent(BarFill);
