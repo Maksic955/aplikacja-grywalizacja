@@ -1,244 +1,217 @@
-import React, { useState } from 'react';
-import { FlatList, Modal , ScrollView, TouchableWithoutFeedback} from 'react-native';
-import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
 import styled from 'styled-components/native';
 import { Ionicons } from '@expo/vector-icons';
-import TopBar from '../components/TopBar';
-import TaskItem from '../components/TaskItem';
-import { useTasks, Task } from '../context/TaskContext';
-import TaskDetailModal from '../components/TaskDetailModal';
+import { useRouter } from 'expo-router';
+import { useTasks } from '@/context/TaskContext';
+import HomeTaskCard from '@/components/HomeTaskCard';
+import FlipCard from '@/components/FlipCard';
+import PageHeader from '@/components/PageHeader';
+import { Dimensions, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { useChallenges } from '@/context/ChallengesContext';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_WIDTH = SCREEN_WIDTH - 32;
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [menuVisible, setMenuVisible] = useState(false);
-  const { tasks } = useTasks();
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const { tasks, updateTaskStatus, completeTask } = useTasks();
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const { availableChallenges } = useChallenges();
 
-  const inProgress = tasks.filter(t => t.status === 'inProgress');
-  const done = tasks.filter(t => t.status === 'done');
-  const cancelled = tasks.filter(t => t.status === 'cancelled');
+  const activeTasks = useMemo(() => tasks.filter((t) => t.status === 'inProgress'), [tasks]);
 
-  interface TaskType {
-    id: string;
-    title: string;
-    difficulty?: 'Łatwy' | 'Średni' | 'Trudny';
-  }
+  const hasTasks = activeTasks.length > 0;
 
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / CARD_WIDTH);
+    setCurrentSlide(index);
+  };
 
   return (
     <Screen>
-      <TopBar
-        onMenuPress={() => setMenuVisible(true)}
-        avatarUri={''}
-        currentXP={0}
-        maxXP={0}
-        currentHP={0}
-        maxHP={0}
-      />
+      <ScrollContainer contentContainerStyle={{ paddingBottom: 140 }}>
+        <PageHeader title="Strona Główna" showBackButton={false} />
+        <SectionCard>
+          <SectionHeader>Bieżące zadania</SectionHeader>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 80}}>
-        <Section>
-          <SectionHeader>W toku</SectionHeader>
-          <FlatList
-          data={inProgress}
-          scrollEnabled={false}
-          keyExtractor={t => t.id}
-          renderItem={({ item }: {item: TaskType}) => (
-            <TaskItem
-              title={item.title}
-              difficulty={item.difficulty}
-              onPress={() => {
-                setSelectedTask({
-                  id: item.id,
-                  title: item.title,
-                  difficulty: item.difficulty ?? 'Łatwy',
-                  description: '',
-                  dueDate: new Date(),
-                  status: 'inProgress'
-                });
-                setModalVisible(true);
-              }}
-            />
+          {!hasTasks ? (
+            <EmptyWrap>
+              <EmptyText>Brak zadań w toku — dodaj nowe!</EmptyText>
+              <InlineAdd onPress={() => router.push('/add-task')}>
+                <Ionicons name="add" size={22} color="#fff" />
+              </InlineAdd>
+            </EmptyWrap>
+          ) : (
+            <>
+              <TasksSlider
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={CARD_WIDTH}
+                decelerationRate="fast"
+                pagingEnabled
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+              >
+                {activeTasks.map((task) => (
+                  <SlideWrapper key={task.id}>
+                    <HomeTaskCard
+                      task={task}
+                      onPause={() => updateTaskStatus(task.id, 'paused')}
+                      onDone={() => completeTask(task.id, task.difficulty)}
+                    />
+                  </SlideWrapper>
+                ))}
+              </TasksSlider>
+
+              {activeTasks.length > 1 && (
+                <PaginationDots>
+                  {activeTasks.map((_, index) => (
+                    <Dot key={index} active={index === currentSlide} />
+                  ))}
+                </PaginationDots>
+              )}
+            </>
           )}
-          contentContainerStyle={{ padding: 16 }}
-          ListEmptyComponent={<EmptyText>Brak zadań – dodaj nowe!</EmptyText>}
-        />
-        </Section>
+        </SectionCard>
 
-        <Section>
-          <SectionHeader>Wstrzymane</SectionHeader>
-          <FlatList
-            data={done}
-            scrollEnabled={false}
-            keyExtractor={t => t.id}
-            renderItem={({ item }: {item: TaskType}) => (
-              <TaskItem
-                title={item.title}
-                difficulty={item.difficulty}
-                onPress={() => {
-                  setSelectedTask({
-                    id: item.id,
-                    title: item.title,
-                    difficulty: item.difficulty ?? 'Łatwy',
-                    description: '',
-                    dueDate: new Date(),
-                    status: 'done'
-                  });
-                  setModalVisible(true);
-                }}
+        <SectionCard>
+          <SectionHeader>Wyzwania</SectionHeader>
+
+          <ChallengesGrid>
+            {availableChallenges.slice(0, 9).map((challenge) => (
+              <FlipCard
+                key={challenge.id}
+                title={challenge.title}
+                image={challenge.icon}
+                description={challenge.description}
               />
-            )}
-            contentContainerStyle={{ padding: 16 }}
-            ListEmptyComponent={<EmptyText>Brak wstrzymanych zadań</EmptyText>}
-          />
-        </Section>
+            ))}
+          </ChallengesGrid>
 
-        <Section>
-          <SectionHeader>Wykonane</SectionHeader>
-          <FlatList
-            data={cancelled}
-            scrollEnabled={false}
-            keyExtractor={t => t.id}
-            renderItem={({ item }: {item: TaskType}) => (
-              <TaskItem
-                title={item.title}
-                difficulty={item.difficulty}
-                onPress={() => {
-                  setSelectedTask({
-                    id: item.id,
-                    title: item.title,
-                    difficulty: item.difficulty ?? 'Łatwy',
-                    description: '',
-                    dueDate: new Date(),
-                    status: 'cancelled'
-                  });
-                  setModalVisible(true);
-                }}
-              />
-            )}
-            contentContainerStyle={{ padding: 16 }}
-            ListEmptyComponent={<EmptyText>Brak anulowanych zadań</EmptyText>}
-          />
-        </Section>
-      </ScrollView>
+          <MoreButton onPress={() => router.push('/challenges')}>
+            <MoreButtonText>Przejdź do Wyzwań</MoreButtonText>
+            <Ionicons name="arrow-forward" size={18} color="#2875d4" />
+          </MoreButton>
+        </SectionCard>
+      </ScrollContainer>
 
-       <Modal visible={!!selectedTask} transparent animationType='fade'>
-          <TouchableWithoutFeedback onPress={() => setSelectedTask(null)}>
-            <Overlay/>
-          </TouchableWithoutFeedback>
-
-          {selectedTask && (
-            <TaskDetailModal
-              visible={modalVisible}
-              taskId={selectedTask.id}              
-              onClose={() => setSelectedTask(null)}
-            />
-          )}  
-       </Modal>
-
-      <FloatingButton onPress={() => router.push('/add-task')}>
-        <Ionicons name="add" size={28} color="#fff" />
-      </FloatingButton>
-
-      <Modal visible={menuVisible} transparent animationType="fade">
-        <MenuOverlay>
-          <MenuContainer>
-            <CloseButton onPress={() => setMenuVisible(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </CloseButton>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Home</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Zadania</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Statystyki</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Wyzwania</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Kontakt</MenuText>
-            </MenuItem>
-            <MenuItem onPress={() => { setMenuVisible(false); router.push('/'); }}>
-              <MenuText>Faq</MenuText>
-            </MenuItem>
-          </MenuContainer>
-        </MenuOverlay>
-      </Modal>
+      {hasTasks && (
+        <FloatingButton onPress={() => router.push('/add-task')} activeOpacity={0.7}>
+          <Ionicons name="add" size={28} color="#fff" />
+        </FloatingButton>
+      )}
     </Screen>
   );
 }
 
+// style
 const Screen = styled.SafeAreaView`
   flex: 1;
+  background-color: #f5f5d5;
 `;
 
-const Section = styled.View`margin-bottom: 20px;`;
+const ScrollContainer = styled.ScrollView`
+  flex: 1;
+`;
+
+const SectionCard = styled.View`
+  background-color: white;
+  border-radius: 16px;
+  padding: 16px;
+  margin: 16px;
+  margin-bottom: 0;
+  shadow-color: #000;
+  shadow-opacity: 0.1;
+  shadow-radius: 8px;
+  elevation: 3;
+`;
 
 const SectionHeader = styled.Text`
-  font-size: 18px;
-  font-weight: bold;
-  margin: 0 16px 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 16px;
 `;
 
-const Overlay = styled.View`
-  flex: 1;
-  background-color: rgba(0,0,0,0.4);
+const EmptyWrap = styled.View`
+  align-items: center;
+  padding: 32px 0;
+  gap: 12px;
 `;
 
 const EmptyText = styled.Text`
   text-align: center;
-  color: #888;
-  margin: 16px 0;
+  color: #9aa8b2;
+  font-size: 16px;
+`;
+
+const InlineAdd = styled.TouchableOpacity`
+  padding: 12px 16px;
+  border-radius: 20px;
+  background-color: #2875d4;
+`;
+
+const TasksSlider = styled.ScrollView`
+  margin: 0 -16px;
+`;
+
+const SlideWrapper = styled.View`
+  width: ${CARD_WIDTH}px;
+  padding: 0 16px;
+`;
+
+const PaginationDots = styled.View`
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin-top: 16px;
+  gap: 8px;
+`;
+
+const Dot = styled.View<{ active: boolean }>`
+  width: ${({ active }) => (active ? '24px' : '8px')};
+  height: 8px;
+  border-radius: 4px;
+  background-color: ${({ active }) => (active ? '#2875d4' : '#d0d0d0')};
+`;
+
+const ChallengesGrid = styled.View`
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+`;
+
+const MoreButton = styled.TouchableOpacity`
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #e8f4fd;
+  border-radius: 10px;
+  gap: 8px;
+`;
+
+const MoreButtonText = styled.Text`
+  font-size: 16px;
+  font-weight: 600;
+  color: #2875d4;
 `;
 
 const FloatingButton = styled.TouchableOpacity`
   position: absolute;
   right: 24px;
-  bottom: 56px;
+  bottom: 140px;
   width: 56px;
   height: 56px;
   border-radius: 28px;
   background-color: #2875d4;
   align-items: center;
   justify-content: center;
+  shadow-color: #000;
+  shadow-opacity: 0.3;
+  shadow-radius: 8px;
   elevation: 8;
-`;
-
-// ——— Menu modal styling ———
-
-const MenuOverlay = styled.View`
-  flex: 1;
-  justify-content: center;
-  margin: 50px;
-`;
-
-const MenuContainer = styled.View`
-  flex: 1;
-  width: 100%;
-  padding: 24px;
-  background-color: rgba(255,255,255,0.9);
-  border-radius: 12px;
-  justify-content: center;
-  align-items: center;
-`;
-
-const CloseButton = styled.TouchableOpacity`
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 8px;
-  z-index: 1;
-`;
-
-const MenuItem = styled.TouchableOpacity`
-  padding-vertical: 12px;
-`;
-
-const MenuText = styled.Text`
-  font-size: 24px;
-  color: #333;
 `;

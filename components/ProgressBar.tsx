@@ -1,43 +1,60 @@
-import React from 'react';
+import { useEffect } from 'react';
 import styled from 'styled-components/native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 interface ProgressBarProps {
   value: number;
   maxValue: number;
-  height?: number;
+  height: number;
   backgroundColor?: string;
   fillColor?: string;
+  radius?: number;
 }
 
-const Container = styled.View<{ height: number; backgroundColor: string }>`
+export default function ProgressBar({
+  value,
+  maxValue,
+  height,
+  backgroundColor = '#e0e0e0',
+  fillColor = '#76c7c0',
+  radius = 8,
+}: ProgressBarProps) {
+  const ratio = Math.min(Math.max(value / maxValue, 0), 1);
+
+  const animatedRatio = useSharedValue(ratio);
+
+  useEffect(() => {
+    animatedRatio.value = withSpring(ratio, {
+      damping: 30,
+      stiffness: 60,
+      mass: 0.5,
+    });
+  }, [ratio]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${animatedRatio.value * 100}%`,
+  }));
+
+  return (
+    <BarContainer height={height} backgroundColor={backgroundColor} radius={radius}>
+      <AnimatedBarFill style={animatedStyle} fillColor={fillColor} radius={radius} />
+    </BarContainer>
+  );
+}
+
+// style
+const BarContainer = styled.View<{ height: number; backgroundColor: string; radius: number }>`
   width: 100%;
-  height: ${({ height }: { height: number }) => height}px;
-  background-color: ${({ backgroundColor }: { backgroundColor: string }) => backgroundColor};
-  border-radius: ${({ height }: { height: number }) => height / 2}px;
+  height: ${({ height }) => height}px;
+  background-color: ${({ backgroundColor }) => backgroundColor};
+  border-radius: ${({ radius }) => radius}px;
   overflow: hidden;
 `;
 
-const Fill = styled.View<{ fillWidth: string; fillColor: string }>`
-  width: ${({ fillWidth }: { fillWidth: string }) => fillWidth};
+const BarFill = styled.View<{ fillColor: string; radius?: number }>`
   height: 100%;
-  background-color: ${({ fillColor }: { fillColor: string }) => fillColor};
+  background-color: ${({ fillColor }) => fillColor};
+  border-radius: ${({ radius }) => radius}px;
 `;
 
-const ProgressBar: React.FC<ProgressBarProps> = ({
-  value,
-  maxValue,
-  height = 6,
-  backgroundColor = '#E0E0E0',
-  fillColor = '#4CAF50',
-}) => {
-  const ratio = Math.min(Math.max(value / maxValue, 0), 1);
-  const fillWidth = `${ratio * 100}%`;
-
-  return (
-    <Container height={height} backgroundColor={backgroundColor}>
-      <Fill fillWidth={fillWidth} fillColor={fillColor} />
-    </Container>
-  );
-};
-
-export default ProgressBar;
+const AnimatedBarFill = Animated.createAnimatedComponent(BarFill);
