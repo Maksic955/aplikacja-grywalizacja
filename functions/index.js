@@ -1,8 +1,9 @@
 import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
-import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https'; // ← DODANE onRequest
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import fetch from 'node-fetch';
 import {
   XP_REWARD,
   HUNGER_REDUCTION,
@@ -16,9 +17,45 @@ import {
   VALID_STATUSES,
 } from './constants.js';
 
-// Inicjalizacja
 initializeApp();
 const db = getFirestore();
+
+// Push notification helper
+const sendPushNotification = async (expoPushToken, title, body, data = {}) => {
+  try {
+    const message = {
+      to: expoPushToken,
+      sound: 'default',
+      title: title,
+      body: body,
+      data: data,
+      priority: 'high',
+      channelId: 'default',
+    };
+
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+
+    const result = await response.json();
+
+    if (result.data && result.data.status === 'error') {
+      console.error('Push notification error:', result.data.message);
+      return false;
+    }
+
+    console.log('Push notification sent:', result);
+    return true;
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+    return false;
+  }
+};
 
 export const seedChallenges = onRequest(async (req, res) => {
   try {
@@ -78,9 +115,379 @@ export const increaseHunger = onSchedule('every 1 hours', async (event) => {
 
     await batch.commit();
   } catch (error) {
-    console.error('❌ Error in increaseHunger:', error);
+    console.error('Error in increaseHunger:', error);
   }
 });
+
+// Hunger notifications - every 1 hour
+export const checkHungerNotifications = onSchedule(
+  {
+    schedule: 'every 1 hours',
+    timeZone: 'Europe/Warsaw',
+    memory: '256MiB',
+  },
+  async (event) => {
+    console.log('Checking hunger notifications...');
+
+    try {
+      const usersSnapshot = await db.collection('users').get();
+      let notificationsSent = 0;
+      let errors = 0;
+
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        const userData = userDoc.data();
+
+        const hunger = userData.hunger || 100;
+        const expoPushToken = userData.expoPushToken;
+
+        if (!expoPushToken) continue;
+
+        // Skip if notified recently
+        const lastNotificationSent = userData.lastHungerNotification?.toDate
+          ? userData.lastHungerNotification.toDate()
+          : null;
+        const now = new Date();
+        const hoursSinceLastNotif = lastNotificationSent
+          ? (now - lastNotificationSent) / (1000 * 60 * 60)
+          : 999;
+
+        if (hoursSinceLastNotif < 6) continue;
+
+        let shouldSendNotification = false;
+        let title = '';
+        let body = '';
+
+        if (hunger <= 10) {
+          shouldSendNotification = true;
+          title = '💀 Tasko umiera z głodu!';
+          body = `Krytyczny poziom głodu: ${Math.round(hunger)}%. Nakarm natychmiast!`;
+        } else if (hunger <= 30) {
+          shouldSendNotification = true;
+          title = '🚨 Tasko jest bardzo głodny!';
+          body = `Poziom głodu: ${Math.round(hunger)}%. Nakarm swoją postać zanim umrze!`;
+        } else if (hunger <= 50) {
+          shouldSendNotification = true;
+          title = '🍕 Tasko jest głodny';
+          body = `Poziom głodu: ${Math.round(hunger)}%. Warto nakarmić postać!`;
+        }
+
+        if (shouldSendNotification) {
+          const success = await sendPushNotification(expoPushToken, title, body, {
+            screen: 'character',
+            userId: userId,
+            action: 'feed',
+          });
+
+          if (success) {
+            notificationsSent++;
+            await userDoc.ref.update({
+              lastHungerNotification: FieldValue.serverTimestamp(),
+            });
+          } else {
+            errors++;
+          }
+        }
+      }
+
+      console.log(`Hunger notifications: ${notificationsSent} sent, ${errors} errors`);
+      return { notificationsSent, errors };
+    } catch (error) {
+      console.error('Error in checkHungerNotifications:', error);
+      throw error;
+    }
+  },
+);
+
+// Deadline notifications - every 10 minutes
+export const checkDeadlineNotifications = onSchedule(
+  {
+    schedule: 'every 10 minutes',
+    timeZone: 'Europe/Warsaw',
+    memory: '256MiB',
+  },
+  async (event) => {
+    console.log('Checking deadline notifications...');
+
+    try {
+      const now = new Date();
+      const usersSnapshot = await db.collection('users').get();
+      let notificationsSent = 0;
+
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        const userData = userDoc.data();
+        const expoPushToken = userData.expoPushToken;
+
+        if (!expoPushToken) continue;
+
+        const tasksSnap = await db
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .where('status', '!=', 'done')
+          .get();
+
+        for (const taskDoc of tasksSnap.docs) {
+          const task = taskDoc.data();
+          const dueDate = task.dueDate?.toDate ? task.dueDate.toDate() : null;
+
+          if (!dueDate || dueDate < now) continue;
+
+          const minutesUntilDeadline = (dueDate - now) / (1000 * 60);
+          const alreadyNotified2h = task.notified2h || false;
+          const alreadyNotified30m = task.notified30m || false;
+
+          // 2 hours before
+          if (minutesUntilDeadline <= 120 && minutesUntilDeadline > 110 && !alreadyNotified2h) {
+            await sendPushNotification(
+              expoPushToken,
+              '⏰ Deadline za 2 godziny!',
+              `"${task.title}" kończy się o ${dueDate.toLocaleTimeString('pl-PL', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`,
+              { screen: 'tasks', taskId: taskDoc.id },
+            );
+
+            await taskDoc.ref.update({ notified2h: true });
+            notificationsSent++;
+          }
+
+          // 30 minutes before
+          if (minutesUntilDeadline <= 30 && minutesUntilDeadline > 20 && !alreadyNotified30m) {
+            await sendPushNotification(
+              expoPushToken,
+              '🚨 Ostatnie 30 minut!',
+              `"${task.title}" kończy się niedługo!`,
+              { screen: 'tasks', taskId: taskDoc.id, urgent: true },
+            );
+
+            await taskDoc.ref.update({ notified30m: true });
+            notificationsSent++;
+          }
+        }
+      }
+
+      console.log(`Deadline notifications: ${notificationsSent} sent`);
+      return { notificationsSent };
+    } catch (error) {
+      console.error('Error in checkDeadlineNotifications:', error);
+      throw error;
+    }
+  },
+);
+
+// Daily streak reminder - 20:00
+export const dailyStreakReminder = onSchedule(
+  {
+    schedule: '0 20 * * *',
+    timeZone: 'Europe/Warsaw',
+    memory: '256MiB',
+  },
+  async (event) => {
+    console.log('Sending daily streak reminders...');
+
+    try {
+      const usersSnapshot = await db.collection('users').get();
+      let notificationsSent = 0;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        const userData = userDoc.data();
+        const expoPushToken = userData.expoPushToken;
+        const currentStreak = userData.currentStreak || 0;
+
+        if (!expoPushToken) continue;
+
+        const tasksSnap = await db
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .where('status', '==', 'done')
+          .get();
+
+        let completedToday = false;
+        tasksSnap.forEach((taskDoc) => {
+          const task = taskDoc.data();
+          const completedAt = task.completedAt?.toDate ? task.completedAt.toDate() : null;
+
+          if (completedAt && completedAt >= today) {
+            completedToday = true;
+          }
+        });
+
+        // Send reminder if no task completed today
+        if (!completedToday && currentStreak > 0) {
+          await sendPushNotification(
+            expoPushToken,
+            `🔥 Nie zgub streak ${currentStreak} dni!`,
+            'Ukończ przynajmniej jedno zadanie dzisiaj, żeby utrzymać passę!',
+            { screen: 'tasks', action: 'addTask' },
+          );
+          notificationsSent++;
+        } else if (!completedToday) {
+          await sendPushNotification(
+            expoPushToken,
+            '🎯 Zacznij nową passę!',
+            'Ukończ zadanie dzisiaj i zbuduj swój streak!',
+            { screen: 'tasks' },
+          );
+          notificationsSent++;
+        }
+      }
+
+      console.log(`Daily reminders: ${notificationsSent} sent`);
+      return { notificationsSent };
+    } catch (error) {
+      console.error('Error in dailyStreakReminder:', error);
+      throw error;
+    }
+  },
+);
+
+// Paused tasks reminder - every 12 hours
+export const checkPausedTasks = onSchedule(
+  {
+    schedule: 'every 12 hours',
+    timeZone: 'Europe/Warsaw',
+    memory: '256MiB',
+  },
+  async (event) => {
+    console.log('Checking paused tasks...');
+
+    try {
+      const now = new Date();
+      const usersSnapshot = await db.collection('users').get();
+      let notificationsSent = 0;
+
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        const userData = userDoc.data();
+        const expoPushToken = userData.expoPushToken;
+
+        if (!expoPushToken) continue;
+
+        const tasksSnap = await db
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .where('status', '==', 'paused')
+          .get();
+
+        let pausedCount = 0;
+        let oldestPausedTask = null;
+        let longestPauseDuration = 0;
+
+        tasksSnap.forEach((taskDoc) => {
+          const task = taskDoc.data();
+          const updatedAt = task.updatedAt?.toDate ? task.updatedAt.toDate() : null;
+
+          if (updatedAt) {
+            const hoursSincePause = (now - updatedAt) / (1000 * 60 * 60);
+
+            if (hoursSincePause > 24) {
+              pausedCount++;
+
+              if (hoursSincePause > longestPauseDuration) {
+                longestPauseDuration = hoursSincePause;
+                oldestPausedTask = task;
+              }
+            }
+          }
+        });
+
+        if (pausedCount > 0 && oldestPausedTask) {
+          const days = Math.floor(longestPauseDuration / 24);
+
+          await sendPushNotification(
+            expoPushToken,
+            '⏸️ Wróć do akcji!',
+            `Masz ${pausedCount} wstrzymanych zadań. "${oldestPausedTask.title}" czeka już ${days} dni!`,
+            { screen: 'tasks', filter: 'paused' },
+          );
+          notificationsSent++;
+        }
+      }
+
+      console.log(`Paused tasks: ${notificationsSent} notifications sent`);
+      return { notificationsSent };
+    } catch (error) {
+      console.error('Error in checkPausedTasks:', error);
+      throw error;
+    }
+  },
+);
+
+// Overdue tasks reminder - daily at 9:00
+export const checkOverdueTasks = onSchedule(
+  {
+    schedule: '0 9 * * *',
+    timeZone: 'Europe/Warsaw',
+    memory: '256MiB',
+  },
+  async (event) => {
+    console.log('Checking overdue tasks...');
+
+    try {
+      const now = new Date();
+      const usersSnapshot = await db.collection('users').get();
+      let notificationsSent = 0;
+
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        const userData = userDoc.data();
+        const expoPushToken = userData.expoPushToken;
+
+        if (!expoPushToken) continue;
+
+        const tasksSnap = await db
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .where('status', '!=', 'done')
+          .get();
+
+        let overdueCount = 0;
+        let overdueTaskNames = [];
+
+        tasksSnap.forEach((taskDoc) => {
+          const task = taskDoc.data();
+          const dueDate = task.dueDate?.toDate ? task.dueDate.toDate() : null;
+
+          if (dueDate && dueDate < now) {
+            overdueCount++;
+            if (overdueTaskNames.length < 2) {
+              overdueTaskNames.push(task.title);
+            }
+          }
+        });
+
+        if (overdueCount > 0) {
+          const tasksText = overdueTaskNames.join('", "');
+          const moreText = overdueCount > 2 ? ` i ${overdueCount - 2} więcej` : '';
+
+          await sendPushNotification(
+            expoPushToken,
+            '📅 Masz zaległe zadania!',
+            `"${tasksText}"${moreText} czekają na ukończenie.`,
+            { screen: 'tasks', filter: 'overdue' },
+          );
+          notificationsSent++;
+        }
+      }
+
+      console.log(`Overdue tasks: ${notificationsSent} notifications sent`);
+      return { notificationsSent };
+    } catch (error) {
+      console.error('Error in checkOverdueTasks:', error);
+      throw error;
+    }
+  },
+);
 
 export const createUserProfile = onDocumentCreated('users/{userId}', async (event) => {
   const userId = event.params.userId;
@@ -331,6 +738,20 @@ export const checkChallenges = onDocumentWritten('users/{userId}/tasks/{taskId}'
 
         completedCount++;
         totalXpGained += challenge.xpReward;
+
+        // Send challenge completion notification
+        if (userData.expoPushToken) {
+          await sendPushNotification(
+            userData.expoPushToken,
+            '🏆 Nowe wyzwanie ukończone!',
+            `"${challenge.title}" - zdobyłeś ${challenge.xpReward} XP!`,
+            {
+              screen: 'challenges',
+              challengeId: challengeId,
+              xpGained: challenge.xpReward,
+            },
+          );
+        }
       } else {
         batch.set(
           userChallengeRef,
@@ -353,7 +774,7 @@ export const checkChallenges = onDocumentWritten('users/{userId}/tasks/{taskId}'
 
     await batch.commit();
   } catch (error) {
-    console.error(`❌ Error checking challenges for user ${userId}:`, error);
+    console.error(`Error checking challenges for user ${userId}:`, error);
   }
 });
 
@@ -568,6 +989,7 @@ function checkChallengeCondition(condition, stats, currentTask) {
       }
 
       return { completed: false, progress: 0 };
+
     case 'fastTasksCompleted':
       const count = condition.minutes === 30 ? stats.fastTasksUnder30 : stats.fastTasksUnder60;
       return {

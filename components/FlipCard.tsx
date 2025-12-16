@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import styled from 'styled-components/native';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -11,9 +12,15 @@ interface FlipCardProps {
   title: string;
   image: string;
   description: string;
+  variant?: 'challenge' | 'badge';
 }
 
-export default function FlipCard({ title, image, description }: FlipCardProps) {
+export default function FlipCard({
+  title,
+  image,
+  description,
+  variant = 'challenge',
+}: FlipCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const opacity = useSharedValue(1);
@@ -34,14 +41,21 @@ export default function FlipCard({ title, image, description }: FlipCardProps) {
 
   return (
     <CardWrapper onPress={handlePress} activeOpacity={0.8}>
-      <CardFace>
+      <CardFace variant={variant}>
         <AnimatedContent style={animatedStyle}>
           {!showContent ? (
-            <CardImage>{image}</CardImage>
+            <>
+              <CardImage>{image}</CardImage>
+              {variant === 'badge' && (
+                <CheckmarkCircle>
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                </CheckmarkCircle>
+              )}
+            </>
           ) : (
             <TextContent>
-              <CardTitle>{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
+              <CardTitle variant={variant}>{title}</CardTitle>
+              <CardDescription variant={variant}>{description}</CardDescription>
             </TextContent>
           )}
         </AnimatedContent>
@@ -56,15 +70,16 @@ const CardWrapper = styled.TouchableOpacity`
   aspect-ratio: 1;
 `;
 
-const CardFace = styled.View`
+const CardFace = styled.View<{ variant: 'challenge' | 'badge' }>`
   width: 100%;
   height: 100%;
-  background-color: #f0f4f8;
+  background-color: ${({ variant }) => (variant === 'badge' ? '#e8f5e9' : '#f0f4f8')};
   border-radius: 12px;
   justify-content: center;
   align-items: center;
-  border: 2px solid #e0e6ed;
+  border: 2px solid ${({ variant }) => (variant === 'badge' ? '#4caf50' : '#e0e6ed')};
   padding: 8px;
+  position: relative;
 `;
 
 const Content = styled.View`
@@ -80,22 +95,35 @@ const CardImage = styled.Text`
   font-size: 48px;
 `;
 
+const CheckmarkCircle = styled.View`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background-color: #4caf50;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+`;
+
 const TextContent = styled.View`
   justify-content: center;
   align-items: center;
 `;
 
-const CardTitle = styled.Text`
+const CardTitle = styled.Text<{ variant: 'challenge' | 'badge' }>`
   font-size: 12px;
   font-weight: 700;
-  color: #333;
+  color: ${({ variant }) => (variant === 'badge' ? '#2e7d32' : '#333')};
   text-align: center;
   margin-bottom: 4px;
 `;
 
-const CardDescription = styled.Text`
+const CardDescription = styled.Text<{ variant: 'challenge' | 'badge' }>`
   font-size: 10px;
-  color: #666;
+  color: ${({ variant }) => (variant === 'badge' ? '#558b2f' : '#666')};
   text-align: center;
   line-height: 14px;
 `;

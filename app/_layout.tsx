@@ -13,6 +13,7 @@ import TopBar from '@/components/TopBar';
 import SideMenu from '@/components/SideMenu';
 import NavBar from '@/components/NavBar';
 import EntryPage from './entry-page';
+import { NotificationsProvider } from '@/context/NotificationContext';
 
 type RoutePath =
   | '/'
@@ -31,9 +32,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <ChallengesProvider>
-          <LayoutWithAuth />
-        </ChallengesProvider>
+        <NotificationsProvider>
+          <ChallengesProvider>
+            <LayoutWithAuth />
+          </ChallengesProvider>
+        </NotificationsProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );
