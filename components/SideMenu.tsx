@@ -229,6 +229,7 @@ const MenuCard = styled.View`
   left: 0;
   width: ${MENU_WIDTH}px;
   background-color: white;
+  border-radius: 16px;
   padding: 16px;
   padding-top: 60px;
   padding-bottom: 55px;

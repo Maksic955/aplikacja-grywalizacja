@@ -59,35 +59,44 @@ export function ChallengesProvider({ children }: { children: React.ReactNode }) 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     const fetchChallenges = async () => {
+      setLoading(true);
+
       try {
         const challengesRef = collection(firestore, 'challenges');
         const q = query(challengesRef, orderBy('order', 'asc'));
         const snapshot = await getDocs(q);
 
         const challengesData: Challenge[] = [];
+        let docCount = 0;
         snapshot.forEach((doc) => {
-          challengesData.push({ id: doc.id, ...doc.data() } as Challenge);
+          docCount++;
+          const data = doc.data();
+          challengesData.push({ id: doc.id, ...data } as Challenge);
         });
 
         setChallenges(challengesData);
       } catch (err: any) {
-        console.error('Error fetching challenges:', err);
+        console.error('ERROR fetching challenges:', err);
         setError(err.message);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchChallenges();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!user?.uid) {
       setUserChallenges(new Map());
-      setLoading(false);
       return;
     }
-
-    setLoading(true);
 
     const userChallengesRef = collection(firestore, 'users', user.uid, 'userChallenges');
 
@@ -95,9 +104,12 @@ export function ChallengesProvider({ children }: { children: React.ReactNode }) 
       userChallengesRef,
       (snapshot) => {
         const userChallengesMap = new Map<string, UserChallenge>();
+        let count = 0;
 
         snapshot.forEach((doc) => {
+          count++;
           const data = doc.data();
+
           userChallengesMap.set(doc.id, {
             challengeId: doc.id,
             status: data.status || 'locked',
@@ -110,19 +122,20 @@ export function ChallengesProvider({ children }: { children: React.ReactNode }) 
         setUserChallenges(userChallengesMap);
       },
       (err) => {
-        console.error('Error listening to user challenges:', err);
+        console.error('ERROR listening to user challenges:', err);
         setError(err.message);
-        setLoading(false);
       },
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+    };
   }, [user?.uid]);
 
   const availableChallenges = useMemo(() => {
     const userLevel = profile?.level || 1;
 
-    return challenges
+    const result = challenges
       .map((challenge) => {
         const userChallenge = userChallenges.get(challenge.id);
         const isLocked = challenge.requiredLevel > userLevel;
@@ -136,10 +149,12 @@ export function ChallengesProvider({ children }: { children: React.ReactNode }) 
         };
       })
       .filter((challenge) => challenge.userStatus !== 'completed');
+
+    return result;
   }, [challenges, userChallenges, profile?.level]);
 
   const completedChallenges = useMemo(() => {
-    return challenges
+    const result = challenges
       .map((challenge) => {
         const userChallenge = userChallenges.get(challenge.id);
         return {
@@ -151,9 +166,12 @@ export function ChallengesProvider({ children }: { children: React.ReactNode }) 
       })
       .filter((challenge) => challenge.userStatus === 'completed')
       .sort((a, b) => {
-        if (!a.completedAt || !b.completedAt) return 0;
-        return b.completedAt.getTime() - a.completedAt.getTime();
+        const timeA = a.completedAt?.getTime() || 0;
+        const timeB = b.completedAt?.getTime() || 0;
+        return timeB - timeA;
       });
+
+    return result;
   }, [challenges, userChallenges]);
 
   const completedCount = useMemo(() => {

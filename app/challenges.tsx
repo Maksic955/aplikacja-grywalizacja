@@ -6,7 +6,8 @@ import PageHeader from '@/components/PageHeader';
 import { useChallenges } from '@/context/ChallengesContext';
 
 export default function ChallengesScreen() {
-  const { availableChallenges, completedChallenges, loading } = useChallenges();
+  const challengesContext = useChallenges();
+  const { availableChallenges, completedChallenges, loading } = challengesContext;
 
   if (loading) {
     return (
@@ -47,6 +48,7 @@ export default function ChallengesScreen() {
                   title={challenge.title}
                   image={challenge.icon}
                   description={challenge.description}
+                  variant="challenge"
                 />
               ))}
             </ChallengesGrid>
@@ -70,12 +72,13 @@ export default function ChallengesScreen() {
           ) : (
             <BadgesGrid>
               {completedChallenges.map((badge: any) => (
-                <BadgeCard key={badge.id}>
-                  <BadgeImage>{badge.icon}</BadgeImage>
-                  <CheckmarkCircle>
-                    <Ionicons name="checkmark" size={16} color="#fff" />
-                  </CheckmarkCircle>
-                </BadgeCard>
+                <FlipCard
+                  key={badge.id}
+                  title={badge.title}
+                  image={badge.icon}
+                  description={badge.description}
+                  variant="badge"
+                />
               ))}
             </BadgesGrid>
           )}
@@ -173,33 +176,6 @@ const BadgesGrid = styled.View`
   shadow-opacity: 0.1;
   shadow-radius: 8px;
   elevation: 3;
-`;
-
-const BadgeCard = styled.View`
-  width: 30%;
-  aspect-ratio: 1;
-  background-color: #e8f5e9;
-  border-radius: 12px;
-  justify-content: center;
-  align-items: center;
-  border: 2px solid #4caf50;
-  position: relative;
-`;
-
-const BadgeImage = styled.Text`
-  font-size: 48px;
-`;
-
-const CheckmarkCircle = styled.View`
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 12px;
-  background-color: #4caf50;
-  justify-content: center;
-  align-items: center;
 `;
 
 const EmptyCard = styled.View`
